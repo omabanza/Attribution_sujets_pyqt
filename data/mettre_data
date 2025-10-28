@@ -1,0 +1,81 @@
+import sys
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QListWidget
+)
+from module_Attribution_sujets_pyqt import init_db, register_user, login_user, get_subjects
+
+class FenetreConnexion(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Connexion - Attribution de sujets")
+        self.resize(900, 500)
+
+        self.login = QLineEdit()
+        self.login.setPlaceholderText("Login")
+
+        self.password = QLineEdit()
+        self.password.setPlaceholderText("Mot de passe")
+        self.password.setEchoMode(QLineEdit.Password)
+
+        self.btn_connexion = QPushButton("Se connecter")
+        self.btn_creer = QPushButton("Créer un compte")
+
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Connexion"))
+        layout.addWidget(self.login)
+        layout.addWidget(self.password)
+        layout.addWidget(self.btn_connexion)
+        layout.addWidget(self.btn_creer)
+        self.setLayout(layout)
+
+        self.btn_connexion.clicked.connect(self.connexion)
+        self.btn_creer.clicked.connect(self.creation)
+
+    def connexion(self):
+        if login_user(self.login.text(), self.password.text()):
+            QMessageBox.information(self, "Succès", "Connexion réussie ✅")
+            self.hide()
+            self.fen_sujets = FenetreSujets()
+            self.fen_sujets.show()
+        else:
+            QMessageBox.warning(self, "Erreur", "Identifiants incorrects ")
+
+    def creation(self):
+        if register_user(self.login.text(), self.password.text()):
+            QMessageBox.information(self, "Succès", "Compte créé ")
+        else:
+            QMessageBox.warning(self, "Erreur", "Ce login existe déjà ❌")
+
+
+class FenetreSujets(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Choix des sujets")
+        self.resize(400, 300)
+
+        self.liste = QListWidget()
+        for s in get_subjects():
+            self.liste.addItem(f"{s[1]} — {s[2]}")
+
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Liste des sujets disponibles :"))
+        layout.addWidget(self.liste)
+        self.setLayout(layout)
+
+
+if __name__ == "__main__":
+    init_db()
+    app = QApplication(sys.argv)
+    fen = FenetreConnexion()
+    fen.show()
+    sys.exit(app.exec_())
+
+    #subject
+    def connexion(self):
+        if login_user(self.login.text(), self.password.text()):
+            QMessageBox.information(self, "Succès", "Connexion réussie ✅")
+            self.hide()
+            self.fen_sujets = FenetreSujets()
+            self.fen_sujets.show()
+        else:
+            QMessageBox.warning(self, "Erreur", "Identifiants incorrects ❌")
