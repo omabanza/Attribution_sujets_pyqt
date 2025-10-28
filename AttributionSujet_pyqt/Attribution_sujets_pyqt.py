@@ -110,16 +110,22 @@ class FenetreConnexion(QWidget):
 
     def creation(self):
         """Ouvre la fenêtre de création de compte."""
-        self.fen_creation = FenetreCreationCompte()
+        self.fen_creation = FenetreCreationCompte(self)
         self.fen_creation.show()
+        self.hide()
 
 
 class FenetreCreationCompte(QWidget):
     """Fenêtre de création de compte utilisateur."""
 
-    def __init__(self):
-        """Initialise la fenêtre de création de compte."""
+    def __init__(self, fenetre_connexion=None):
+        """Initialise la fenêtre de création de compte.
+
+        :param fenetre_connexion: Référence à la fenêtre de connexion
+                                 pour permettre le retour.
+        """
         super().__init__()
+        self.fenetre_connexion = fenetre_connexion
         self.setWindowTitle("Création de compte")
         self.showMaximized()
 
@@ -160,10 +166,12 @@ class FenetreCreationCompte(QWidget):
         self.password.setFont(font_input)
         self.password.setStyleSheet(self.style_input())
 
-        # Bouton
+        # Boutons
         self.btn_valider = QPushButton("Créer le compte")
-        self.btn_valider.setFont(QFont("Consolas", 12, QFont.Bold))
-        self.btn_valider.setStyleSheet("""
+        self.btn_retour = QPushButton("Retour")
+
+        # Style des boutons
+        bouton_style = """
             QPushButton {
                 background-color: cyan;
                 color: black;
@@ -174,8 +182,16 @@ class FenetreCreationCompte(QWidget):
             QPushButton:hover {
                 background-color: #00bfff;
             }
-        """)
+        """
+        self.btn_valider.setStyleSheet(bouton_style)
+        self.btn_retour.setStyleSheet(bouton_style)
+
+        self.btn_valider.setFont(QFont("Consolas", 12, QFont.Bold))
+        self.btn_retour.setFont(QFont("Consolas", 12, QFont.Bold))
+
+        # Connexions
         self.btn_valider.clicked.connect(self.creer_compte)
+        self.btn_retour.clicked.connect(self.retour)
 
         # Layout
         layout = QVBoxLayout()
@@ -185,6 +201,7 @@ class FenetreCreationCompte(QWidget):
         layout.addWidget(self.login)
         layout.addWidget(self.password)
         layout.addWidget(self.btn_valider)
+        layout.addWidget(self.btn_retour)
         layout.setAlignment(Qt.AlignTop)
         layout.setContentsMargins(150, 100, 150, 50)
         layout.setSpacing(30)
@@ -219,8 +236,16 @@ class FenetreCreationCompte(QWidget):
         if register_user(nom, prenom, login, password):
             QMessageBox.information(self, "Succès", "Compte créé")
             self.close()
+            if self.fenetre_connexion:
+                self.fenetre_connexion.show()
         else:
             QMessageBox.warning(self, "Erreur", "Ce login existe déjà")
+
+    def retour(self):
+        """Retourne à la fenêtre de connexion."""
+        self.close()
+        if self.fenetre_connexion:
+            self.fenetre_connexion.show()
 
 
 if __name__ == "__main__":
