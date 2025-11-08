@@ -79,3 +79,205 @@ if __name__ == "__main__":
             self.fen_sujets.show()
         else:
             QMessageBox.warning(self, "Erreur", "Identifiants incorrects ❌")
+
+
+    
+
+
+################
+   import sys
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QListWidget
+)
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QPalette, QColor
+from module_Attribution_sujets_pyqt import init_db, register_user, login_user, get_subjects
+
+class FenetreConnexion(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Connexion - Attribution de sujets")
+
+        # ✅ La fenêtre occupe tout l'écran
+        self.showMaximized()
+
+        # ✅ Couleur de fond (bleu clair)
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(70, 130, 180))  # Bleu acier
+        self.setPalette(palette)
+
+        # ✅ Police uniforme et plus grande
+        font_label = QFont("Arial", 24, QFont.Bold)
+        font_input = QFont("Arial", 16)
+
+        # ✅ Titre centré
+        titre = QLabel("Connexion")
+        titre.setAlignment(Qt.AlignCenter)
+        titre.setFont(font_label)
+        titre.setStyleSheet("color: white; margin-bottom: 30px;")
+
+        # Champs de saisie
+        self.login = QLineEdit()
+        self.login.setPlaceholderText("Login")
+        self.login.setFont(font_input)
+
+        self.password = QLineEdit()
+        self.password.setPlaceholderText("Mot de passe")
+        self.password.setEchoMode(QLineEdit.Password)
+        self.password.setFont(font_input)
+
+        # Boutons
+        self.btn_connexion = QPushButton("Se connecter")
+        self.btn_creer = QPushButton("Créer un compte")
+
+        # ✅ Style boutons
+        self.btn_connexion.setFont(font_input)
+        self.btn_creer.setFont(font_input)
+        self.btn_connexion.setStyleSheet("background-color: white; color: black; padding: 10px; border-radius: 10px;")
+        self.btn_creer.setStyleSheet("background-color: white; color: black; padding: 10px; border-radius: 10px;")
+
+        # Layout principal
+        layout = QVBoxLayout()
+        layout.addStretch()
+        layout.addWidget(titre)
+        layout.addWidget(self.login)
+        layout.addWidget(self.password)
+        layout.addWidget(self.btn_connexion)
+        layout.addWidget(self.btn_creer)
+        layout.addStretch()
+
+        # Centrer le contenu verticalement
+        layout.setAlignment(Qt.AlignCenter)
+        self.setLayout(layout)
+
+        # Connexions des boutons
+        self.btn_connexion.clicked.connect(self.connexion)
+        self.btn_creer.clicked.connect(self.creation)
+    def connexion(self):
+        if login_user(self.login.text(), self.password.text()):
+            QMessageBox.information(self, "Succès", "Connexion réussie ✅")
+            self.hide()
+            self.fen_sujets.show()
+        else:
+            QMessageBox.warning(self, "Erreur", "Identifiants incorrects ❌")
+
+    def creation(self):
+        self.fen_creation = FenetreCreationCompte()
+        self.fen_creation.show()
+class FenetreCreationCompte(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Création de compte")
+        self.showMaximized()
+
+        # 🎨 Fond sombre (comme ton image)
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(20, 20, 40))
+        self.setPalette(palette)
+
+        # 🧭 Police
+        font_titre = QFont("Consolas", 14, QFont.Bold)
+        font_input = QFont("Consolas", 12)
+
+        # 🔹 Titre
+        titre = QLabel("Création de compte")
+        titre.setAlignment(Qt.AlignCenter)
+        titre.setFont(font_titre)
+        titre.setStyleSheet("color: cyan; margin-bottom: 40px;")
+
+        # 🔹 Champs de saisie
+        self.nom = QLineEdit()
+        self.nom.setPlaceholderText("Nom")
+        self.nom.setFont(font_input)
+        self.nom.setStyleSheet(self.style_input())
+
+        self.prenom = QLineEdit()
+        self.prenom.setPlaceholderText("Prénom")
+        self.prenom.setFont(font_input)
+        self.prenom.setStyleSheet(self.style_input())
+
+        self.login = QLineEdit()
+        self.login.setPlaceholderText("Email / Login")
+        self.login.setFont(font_input)
+        self.login.setStyleSheet(self.style_input())
+
+        self.password = QLineEdit()
+        self.password.setPlaceholderText("Mot de passe")
+        self.password.setEchoMode(QLineEdit.Password)
+        self.password.setFont(font_input)
+        self.password.setStyleSheet(self.style_input())
+
+        # 🔘 Bouton de validation
+        self.btn_valider = QPushButton("Créer le compte")
+        self.btn_valider.setFont(QFont("Consolas", 12, QFont.Bold))
+        self.btn_valider.setStyleSheet("""
+            QPushButton {
+                background-color: cyan;
+                color: black;
+                padding: 12px;
+                border-radius: 10px;
+                margin-top: 20px;
+            }
+            QPushButton:hover {
+                background-color: #00bfff;
+            }
+        """)
+        self.btn_valider.clicked.connect(self.creer_compte)
+
+        # 🧩 Layout principal
+        layout = QVBoxLayout()
+        layout.addWidget(titre)
+        layout.addWidget(self.nom)
+        layout.addWidget(self.prenom)
+        layout.addWidget(self.login)
+        layout.addWidget(self.password)
+        layout.addWidget(self.btn_valider)
+        layout.setAlignment(Qt.AlignTop)
+        layout.setContentsMargins(150, 100, 150, 50)
+        layout.setSpacing(30)
+        self.setLayout(layout)
+
+    def style_input(self):
+        """Style uniforme pour les QLineEdit"""
+        return """
+            QLineEdit {
+                background-color: #1c1c3c;
+                border: 1px solid white;
+                color: white;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            QLineEdit:focus {
+                border: 1px solid cyan;
+            }
+        """
+
+    def creer_compte(self):
+        """Création du compte après validation des champs"""
+        nom = self.nom.text()
+        prenom = self.prenom.text()
+        login = self.login.text()
+        password = self.password.text()
+
+        if not all([nom, prenom, login, password]):
+            QMessageBox.warning(self, "Erreur", "Tous les champs doivent être remplis ❌")
+            return
+
+        if register_user(nom, prenom, login, password):
+            QMessageBox.information(self, "Succès", "Compte créé ✅")
+            self.close()
+        else:
+            QMessageBox.warning(self, "Erreur", "Ce login existe déjà ❌")
+
+
+
+
+if __name__ == "__main__":
+    init_db()
+    app = QApplication(sys.argv)
+    fen = FenetreConnexion()
+    fen.show()
+    sys.exit(app.exec_())
+
+
+    

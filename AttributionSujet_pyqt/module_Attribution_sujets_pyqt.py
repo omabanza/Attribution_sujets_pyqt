@@ -1,73 +1,58 @@
-import sqlite3
-import os
+import sqlite3, os
 
-# Nom de la base locale
 DB_PATH = os.path.join("data", "base.sqlite")
 
+os.makedirs("data", exist_ok=True)
+
 def init_db():
-    """Créer la base et les tables si elles n'existent pas"""
-    os.makedirs("data", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
-    # Création des tables si besoin
+    
     c.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nom TEXT,
-        Prenom TEXT,
-        login TEXT UNIQUE,
-        password TEXT
+        nom TEXT NOT NULL,
+        prenom TEXT NOT NULL,
+        login TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
     )
     """)
-
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS subjects (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        description TEXT
-    )
-    """)
-
-    # Ajouter des sujets de test s’il n’y en a pas
-    c.execute("SELECT COUNT(*) FROM subjects")
-    if c.fetchone()[0] == 0:
-        sujets = [
-            ("Projet Réseau", "Configuration d’un routeur Cisco"),
-            ("Application Python", "Développement client/serveur"),
-            ("Cybersécurité", "Analyse de paquets avec Wireshark")
-        ]
-        c.executemany("INSERT INTO subjects (title, description) VALUES (?, ?)", sujets)
-        conn.commit()
+    
+    conn.commit()
     conn.close()
 
-def register_user(login, password, prenom, nom):
-    """Ajoute un utilisateur"""
+
+def register_user(nom, prenom, login, password):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
     try:
-       c.execute("INSERT INTO users (nom, prenom, login, password) VALUES (?, ?)", (nom, prenom, login, password))
-       conn.commit()
-       return True
-    except sqlite3.IntegrityError:
-        return False
-    finally:
+        c.execute("INSERT INTO users (nom, prenom, login, password) VALUES (?, ?, ?, ?)",
+                  (nom, prenom, login, password))
+        conn.commit()
         conn.close()
+        return True
 
-def login_user(login, password):
-    """Vérifie la connexion"""
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
+
+
+def verifier_identifiants(login, password):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
     c.execute("SELECT * FROM users WHERE login=? AND password=?", (login, password))
-    user = c.fetchone()
+    row = c.fetchone()
+
     conn.close()
-    return user is not None
+    return row is not None
+
 
 def get_subjects():
-    """Retourne la liste des sujets"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT * FROM subjects")
-    sujets = c.fetchall()
-    conn.close()
-    return sujets
+    # Tu pourras l’utiliser plus tard
+    return [
+        (1, "Projet Réseau", "Déployer une infra"),
+        (2, "Projet Dev", "Créer une application PyQt"),
+        (3, "CyberSécurité", "Audit & pentest d'un SI")
+    ]
