@@ -1,11 +1,12 @@
-import sys, socket
+import sys
+import socket
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QPalette, QColor
+from module_Attribution_sujets_pyqt import get_subjects
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 55555
-
 
 # ============================
 # Fenêtre Connexion
@@ -15,9 +16,9 @@ class FenetreConnexion(QWidget):
         super().__init__()
         self.setWindowTitle("Connexion à votre espace candidat")
         self.showMaximized()
-        self.setMinimumSize(self.screen().size())  # Empêche la fenêtre de rétrécir
-        self.resize(self.screen().size())  
-        # --- Couleur de fond (bleu clair)
+        self.setMinimumSize(self.screen().size())
+        self.resize(self.screen().size())
+
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(70, 130, 180))
         self.setPalette(palette)
@@ -26,13 +27,11 @@ class FenetreConnexion(QWidget):
         fontChamp = QFont("Arial", 16)
         fontLabel = QFont("Arial", 14)
 
-        # --- Titre principal
         titre = QLabel("Connexion à votre espace candidat")
         titre.setFont(fontTitre)
         titre.setStyleSheet("color:white;")
         titre.setAlignment(Qt.AlignCenter)
 
-        # --- Label et champ Login
         lbl_login = QLabel("Login : Entrez votre login")
         lbl_login.setFont(fontLabel)
         lbl_login.setStyleSheet("color:white;")
@@ -43,7 +42,6 @@ class FenetreConnexion(QWidget):
         exemple = QLabel("Exemple : lane")
         exemple.setStyleSheet("color:white; font-style:italic;")
 
-        # --- Label et champ Mot de passe
         lbl_mdp = QLabel("Mot de passe : Entrez votre mot de passe")
         lbl_mdp.setFont(fontLabel)
         lbl_mdp.setStyleSheet("color:white;")
@@ -53,25 +51,23 @@ class FenetreConnexion(QWidget):
         self.mdp.setFont(fontChamp)
         self.mdp.setStyleSheet("background:white; padding:10px; border-radius:8px;")
 
-        # --- Case à cocher : afficher le mot de passe
         self.chk_afficher = QCheckBox("Afficher le mot de passe")
         self.chk_afficher.setStyleSheet("color:white; font-size:14px;")
         self.chk_afficher.stateChanged.connect(self.toggle_mdp)
 
-        # --- Bouton Se connecter
         btn_connexion = QPushButton("Se connecter")
         btn_connexion.setFont(fontChamp)
         btn_connexion.setStyleSheet("background:darkblue; color:white; padding:12px; border-radius:10px;")
         btn_connexion.clicked.connect(self.connexion)
 
-        # --- Lien Créer un compte
-        lbl_creer = QLabel("Vous n’avez pas de compte ? <a style='color:white; text-decoration:none;' href='#'>Créez-en un →</a>")
+        lbl_creer = QLabel(
+            "Vous n’avez pas de compte ? <a style='color:white; text-decoration:none;' href='#'>Créez-en un →</a>"
+        )
         lbl_creer.setFont(QFont("Arial", 14))
         lbl_creer.setAlignment(Qt.AlignCenter)
         lbl_creer.setOpenExternalLinks(False)
         lbl_creer.linkActivated.connect(self.ouvrir_page_creation)
 
-        # --- Formulaire centré (dans un cadre)
         form_layout = QVBoxLayout()
         form_layout.setAlignment(Qt.AlignCenter)
         form_layout.setSpacing(10)
@@ -87,13 +83,11 @@ class FenetreConnexion(QWidget):
         form_layout.addSpacing(20)
         form_layout.addWidget(lbl_creer)
 
-        # --- Cadre pour centrer le formulaire
         frame = QFrame()
         frame.setLayout(form_layout)
         frame.setFixedWidth(450)
         frame.setStyleSheet("background-color: rgba(255,255,255,0.1); border-radius:15px; padding:20px;")
 
-        # --- Layout principal
         main_layout = QVBoxLayout()
         main_layout.addStretch()
         main_layout.addWidget(titre)
@@ -103,16 +97,11 @@ class FenetreConnexion(QWidget):
         self.setLayout(main_layout)
 
     def toggle_mdp(self):
-        """Afficher ou masquer le mot de passe"""
-        if self.chk_afficher.isChecked():
-            self.mdp.setEchoMode(QLineEdit.Normal)
-        else:
-            self.mdp.setEchoMode(QLineEdit.Password)
+        self.mdp.setEchoMode(QLineEdit.Normal if self.chk_afficher.isChecked() else QLineEdit.Password)
 
     def connexion(self):
         login = self.login.text().strip()
         mdp = self.mdp.text().strip()
-
         try:
             client = socket.socket()
             client.connect((SERVER_IP, SERVER_PORT))
@@ -121,10 +110,11 @@ class FenetreConnexion(QWidget):
             client.close()
 
             if reponse == "OK":
-                QMessageBox.information(self, "OK", f"Bienvenue {login} ✅")
+                self.hide()
+                self.choix_sujets = FenetreChoixSujets(login, self)
+                self.choix_sujets.show()
             else:
                 QMessageBox.warning(self, "Erreur", "Identifiants incorrects ❌")
-
         except Exception:
             QMessageBox.critical(self, "Erreur", "Serveur non disponible ❌")
 
@@ -146,7 +136,6 @@ class FenetreCreationCompte(QWidget):
         self.setMinimumSize(self.screen().size())
         self.resize(self.screen().size())
 
-        # --- Couleur de fond (bleu clair, comme la page de connexion)
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(70, 130, 180))
         self.setPalette(palette)
@@ -155,13 +144,11 @@ class FenetreCreationCompte(QWidget):
         fontChamp = QFont("Arial", 16)
         fontLabel = QFont("Arial", 14)
 
-        # --- Titre principal
         titre = QLabel("Création de compte")
         titre.setFont(fontTitre)
         titre.setStyleSheet("color:white;")
         titre.setAlignment(Qt.AlignCenter)
 
-        # --- Champs + labels
         def champ_avec_label(label_texte, placeholder):
             lbl = QLabel(label_texte)
             lbl.setFont(fontLabel)
@@ -178,12 +165,10 @@ class FenetreCreationCompte(QWidget):
         lbl_mdp, self.mdp = champ_avec_label("Mot de passe :", "Mot de passe")
         self.mdp.setEchoMode(QLineEdit.Password)
 
-        # --- Case à cocher : afficher le mot de passe
         self.chk_afficher = QCheckBox("Afficher le mot de passe")
         self.chk_afficher.setStyleSheet("color:white; font-size:14px;")
         self.chk_afficher.stateChanged.connect(self.toggle_mdp)
 
-        # --- Boutons
         btn_creer = QPushButton("Créer mon compte")
         btn_creer.setFont(fontChamp)
         btn_creer.setStyleSheet("background:darkblue; color:white; padding:12px; border-radius:10px;")
@@ -191,19 +176,13 @@ class FenetreCreationCompte(QWidget):
 
         btn_retour = QPushButton("Retour")
         btn_retour.setFont(fontChamp)
-        btn_retour.setStyleSheet("background:darkblue; color:white; padding:12px; border-radius:10px;")
+        btn_retour.setStyleSheet("background:darkred; color:white; padding:12px; border-radius:10px;")
         btn_retour.clicked.connect(self.retour)
 
-        # --- Formulaire dans un cadre centré
         form_layout = QVBoxLayout()
         form_layout.setAlignment(Qt.AlignCenter)
         form_layout.setSpacing(10)
-        for lbl, champ in [
-            (lbl_nom, self.nom),
-            (lbl_prenom, self.prenom),
-            (lbl_login, self.login),
-            (lbl_mdp, self.mdp),
-        ]:
+        for lbl, champ in [(lbl_nom, self.nom), (lbl_prenom, self.prenom), (lbl_login, self.login), (lbl_mdp, self.mdp)]:
             form_layout.addWidget(lbl)
             form_layout.addWidget(champ)
             form_layout.addSpacing(10)
@@ -218,7 +197,6 @@ class FenetreCreationCompte(QWidget):
         frame.setFixedWidth(450)
         frame.setStyleSheet("background-color: rgba(255,255,255,0.1); border-radius:15px; padding:20px;")
 
-        # --- Layout principal
         main_layout = QVBoxLayout()
         main_layout.addStretch()
         main_layout.addWidget(titre)
@@ -228,10 +206,7 @@ class FenetreCreationCompte(QWidget):
         self.setLayout(main_layout)
 
     def toggle_mdp(self):
-        if self.chk_afficher.isChecked():
-            self.mdp.setEchoMode(QLineEdit.Normal)
-        else:
-            self.mdp.setEchoMode(QLineEdit.Password)
+        self.mdp.setEchoMode(QLineEdit.Normal if self.chk_afficher.isChecked() else QLineEdit.Password)
 
     def retour(self):
         self.close()
@@ -260,17 +235,111 @@ class FenetreCreationCompte(QWidget):
                 self.prenom.clear()
                 self.login.clear()
                 self.mdp.clear()
-                try:
-                    self.page_connexion.login.setText(login)
-                except Exception:
-                    pass
+                self.page_connexion.login.setText(login)
+                self.retour()
             elif reponse == "LOGIN_EXISTE":
                 QMessageBox.warning(self, "Erreur", "Login déjà utilisé ❌")
             else:
                 QMessageBox.critical(self, "Erreur", f"Réponse serveur inattendue : {reponse}")
-
         except Exception:
             QMessageBox.critical(self, "Erreur", "Serveur non disponible ❌")
+
+
+# ============================
+# Fenêtre Choix de Sujets (Checkbox)
+# ============================
+class FenetreChoixSujets(QWidget):
+    def __init__(self, login, page_connexion):
+        super().__init__()
+        self.login = login
+        self.page_connexion = page_connexion
+        self.setWindowTitle(f"Choix de sujets - {login}")
+        self.showMaximized()
+        self.setMinimumSize(self.screen().size())
+        self.resize(self.screen().size())
+
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(70, 130, 180))
+        self.setPalette(palette)
+
+        fontTitre = QFont("Arial", 28, QFont.Bold)
+        fontSujet = QFont("Arial", 16)
+
+        titre = QLabel("Choisissez vos sujets")
+        titre.setFont(fontTitre)
+        titre.setStyleSheet("color:white;")
+        titre.setAlignment(Qt.AlignCenter)
+
+        # Sujets disponibles
+        self.sujets = get_subjects()
+        extra_sujets = [
+            (100, "IA et Machine Learning", "Créer un modèle prédictif"),
+            (101, "Bases de données", "Concevoir un schéma et requêtes"),
+            (102, "Web Dev", "Développement d'un site interactif")
+        ]
+        for s in extra_sujets:
+            self.sujets.append(s)
+
+        reseau_sujet = (999, "Projet Réseaux", "Déployer une infrastructure")
+        if reseau_sujet not in self.sujets:
+            self.sujets.insert(len(self.sujets)//2, reseau_sujet)
+
+        # Créer les checkboxes
+        self.checkbox_dict = {}
+        sujets_layout = QVBoxLayout()
+        for _id, titre_sujet, description in self.sujets:
+            cb = QCheckBox(f"{titre_sujet} - {description}")
+            cb.setFont(fontSujet)
+            cb.setStyleSheet("color:white;")
+            sujets_layout.addWidget(cb)
+            self.checkbox_dict[_id] = cb
+
+        btn_valider = QPushButton("Valider mes choix")
+        btn_valider.setFont(fontSujet)
+        btn_valider.setStyleSheet("background:darkblue; color:white; padding:12px; border-radius:10px;")
+        btn_valider.clicked.connect(self.valider_choix)
+
+        btn_retour = QPushButton("Retour à la connexion")
+        btn_retour.setFont(fontSujet)
+        btn_retour.setStyleSheet("background:darkred; color:white; padding:12px; border-radius:10px;")
+        btn_retour.clicked.connect(self.retour_connexion)
+
+        layout = QVBoxLayout()
+        layout.addStretch()
+        layout.addWidget(titre)
+        layout.addSpacing(30)
+        layout.addLayout(sujets_layout)
+        layout.addSpacing(20)
+        layout.addWidget(btn_valider, alignment=Qt.AlignCenter)
+        layout.addWidget(btn_retour, alignment=Qt.AlignCenter)
+        layout.addStretch()
+        self.setLayout(layout)
+
+    def valider_choix(self):
+        sujets_choisis = [cb.text() for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+        if not sujets_choisis:
+            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner au moins un sujet.")
+            return
+
+        QMessageBox.information(
+            self,
+            "Sujets choisis",
+            "Vous avez choisi :\n" + "\n".join(sujets_choisis) + " ✅"
+        )
+
+        try:
+            client = socket.socket()
+            client.connect((SERVER_IP, SERVER_PORT))
+            ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+            client.send(f"CHOIX_SUJETS:{self.login}:{','.join(ids)}".encode())
+            client.close()
+        except Exception:
+            QMessageBox.critical(self, "Erreur", "Impossible d'envoyer les choix au serveur.")
+
+    def retour_connexion(self):
+        self.close()
+        self.page_connexion.show()
+
 
 # ============================
 # Lancement de l'application
