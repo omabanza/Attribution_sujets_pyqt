@@ -5,48 +5,44 @@ DB_PATH = os.path.join("data", "base.sqlite")
 os.makedirs("data", exist_ok=True)
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT NOT NULL,
+            prenom TEXT NOT NULL,
+            login TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+        """)
     
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nom TEXT NOT NULL,
-        prenom TEXT NOT NULL,
-        login TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    )
-    """)
-    
-    conn.commit()
-    conn.close()
-
 
 def register_user(nom, prenom, login, password):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
+    # use context manager so commit/close are automatic
     try:
-        c.execute("INSERT INTO users (nom, prenom, login, password) VALUES (?, ?, ?, ?)",
-                  (nom, prenom, login, password))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO users (nom, prenom, login, password) VALUES (?, ?, ?, ?)",
+                (nom, prenom, login, password),
+            )
         return True
-
     except sqlite3.IntegrityError:
-        conn.close()
         return False
 
 
 def verifier_identifiants(login, password):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute("SELECT * FROM users WHERE login=? AND password=?", (login, password))
-    row = c.fetchone()
-
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("SELECT 1 FROM users WHERE login=? AND password=? LIMIT 1", (login, password))
+        row = c.fetchone()
     return row is not None
+
+# Add alias expected by other modules (data/mettre_data, etc.)
+def login_user(login, password):
+    return verifier_identifiants(login, password)
 
 
 def get_subjects():
