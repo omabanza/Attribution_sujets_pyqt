@@ -22,22 +22,22 @@ def gerer_client(conn, addr):
                 if message.startswith("REGISTER:"):
                     parts = message.split(":", 4)
                     if len(parts) != 5:
-                        conn.send("FORMAT_INVALIDE".encode("utf-8"))
+                        conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
                         continue
                     _, nom, prenom, login, mdp = parts
                     if register_user(nom, prenom, login, mdp):
-                        conn.send("INSCRIPTION_OK".encode("utf-8"))
+                        conn.sendall("INSCRIPTION_OK".encode("utf-8"))
                     else:
-                        conn.send("LOGIN_EXISTE".encode("utf-8"))
+                        conn.sendall("LOGIN_EXISTE".encode("utf-8"))
 
                 elif ":" in message:
                     login, mdp = message.split(":", 1)
                     if verifier_identifiants(login, mdp):
-                        conn.send("OK".encode("utf-8"))
+                        conn.sendall("OK".encode("utf-8"))
                     else:
-                        conn.send("ERREUR".encode("utf-8"))
+                        conn.sendall("ERREUR".encode("utf-8"))
                 else:
-                    conn.send("FORMAT_INVALIDE".encode("utf-8"))
+                    conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
 
             except ConnectionResetError:
                 break
@@ -79,7 +79,7 @@ def main():
         return
 
     serveur.listen(5)
-    print(f"✅ Serveur en écoute sur {host}:{port}")
+    print(f"Serveur en écoute sur {host}:{port}")
 
     try:
         while True:
@@ -88,7 +88,8 @@ def main():
             except OSError:
                 # socket fermé, sortir proprement
                 break
-        threading.Thread(target=gerer_client, args=(conn, addr), daemon=True).start()
+            # start thread for each accepted client
+            threading.Thread(target=gerer_client, args=(conn, addr), daemon=True).start()
     finally:
         try:
             serveur.close()
@@ -97,4 +98,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-# ...existing code...        
+# ...existing code...
