@@ -2,7 +2,8 @@ import sys
 import socket
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QPalette, QColor
+
+from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
 from module_Attribution_sujets_pyqt import get_subjects
 
 SERVER_IP = "127.0.0.1"
@@ -265,28 +266,58 @@ class FenetreChoixSujets(QWidget):
         fontTitre = QFont("Arial", 28, QFont.Bold)
         fontSujet = QFont("Arial", 16)
 
+        # ------------------------------
+        # Haut : thème à gauche + login/icône/retour à droite
+        # ------------------------------
+        lbl_theme = QLabel("AttributionSujet")
+        lbl_theme.setFont(QFont("Arial", 18, QFont.Bold))
+        lbl_theme.setStyleSheet("color:white;")
+
+        lbl_icone = QLabel()
+        lbl_icone.setPixmap(QPixmap("pv.png").scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+        lbl_user = QLabel(self.login)
+        lbl_user.setFont(QFont("Arial", 14))
+        lbl_user.setStyleSheet("""
+            color:white;
+            padding:5px 12px;
+            border:2px solid white;
+            border-radius:12px;
+        """)
+
+        box_user = QHBoxLayout()
+        box_user.addWidget(lbl_icone)
+        box_user.addWidget(lbl_user)
+        box_user.setSpacing(10)
+
+        btn_retour = QPushButton("Retour à la connexion")
+        btn_retour.setFont(QFont("Arial", 16))
+        btn_retour.setStyleSheet("background:darkred; color:white; padding:10px; border-radius:10px;")
+        btn_retour.clicked.connect(self.retour_connexion)
+
+        layout_haut = QHBoxLayout()
+        layout_haut.addWidget(lbl_theme)      # gauche
+        layout_haut.addStretch()
+        layout_haut.addLayout(box_user)
+        layout_haut.addSpacing(20)
+        layout_haut.addWidget(btn_retour)
+
+        # ------------------------------
+        # Titre centré
+        # ------------------------------
         titre = QLabel("Choisissez vos sujets")
         titre.setFont(fontTitre)
         titre.setStyleSheet("color:white;")
         titre.setAlignment(Qt.AlignCenter)
 
-        # Sujets disponibles
+        # ------------------------------
+        # Sujets simples (checkbox) au centre
+        # ------------------------------
         self.sujets = get_subjects()
-        extra_sujets = [
-            (100, "IA et Machine Learning", "Créer un modèle prédictif"),
-            (101, "Bases de données", "Concevoir un schéma et requêtes"),
-            (102, "Web Dev", "Développement d'un site interactif")
-        ]
-        for s in extra_sujets:
-            self.sujets.append(s)
-
-        reseau_sujet = (999, "Projet Réseaux", "Déployer une infrastructure")
-        if reseau_sujet not in self.sujets:
-            self.sujets.insert(len(self.sujets)//2, reseau_sujet)
-
-        # Créer les checkboxes
         self.checkbox_dict = {}
         sujets_layout = QVBoxLayout()
+        sujets_layout.setAlignment(Qt.AlignCenter)
+
         for _id, titre_sujet, description in self.sujets:
             cb = QCheckBox(f"{titre_sujet} - {description}")
             cb.setFont(fontSujet)
@@ -294,27 +325,41 @@ class FenetreChoixSujets(QWidget):
             sujets_layout.addWidget(cb)
             self.checkbox_dict[_id] = cb
 
+        # ------------------------------
+        # Boutons Valider / Résultats
+        # ------------------------------
         btn_valider = QPushButton("Valider mes choix")
         btn_valider.setFont(fontSujet)
         btn_valider.setStyleSheet("background:darkblue; color:white; padding:12px; border-radius:10px;")
         btn_valider.clicked.connect(self.valider_choix)
 
-        btn_retour = QPushButton("Retour à la connexion")
-        btn_retour.setFont(fontSujet)
-        btn_retour.setStyleSheet("background:darkred; color:white; padding:12px; border-radius:10px;")
-        btn_retour.clicked.connect(self.retour_connexion)
+        btn_resultat = QPushButton("Résultats")
+        btn_resultat.setFont(fontSujet)
+        btn_resultat.setStyleSheet("background:darkgreen; color:white; padding:12px; border-radius:10px;")
 
+        layout_boutons = QHBoxLayout()
+        layout_boutons.setAlignment(Qt.AlignCenter)
+        layout_boutons.addWidget(btn_valider)
+        layout_boutons.addWidget(btn_resultat)
+
+        # ------------------------------
+        # Layout principal avec sujets centrés verticalement
+        # ------------------------------
         layout = QVBoxLayout()
-        layout.addStretch()
+        layout.addLayout(layout_haut)
+        layout.addStretch()  # espace au-dessus pour centrer
         layout.addWidget(titre)
-        layout.addSpacing(30)
+        layout.addSpacing(20)
         layout.addLayout(sujets_layout)
         layout.addSpacing(20)
-        layout.addWidget(btn_valider, alignment=Qt.AlignCenter)
-        layout.addWidget(btn_retour, alignment=Qt.AlignCenter)
-        layout.addStretch()
+        layout.addLayout(layout_boutons)
+        layout.addStretch()  # espace sous les boutons
+
         self.setLayout(layout)
 
+    # ------------------------------
+    # Fonctions
+    # ------------------------------
     def valider_choix(self):
         sujets_choisis = [cb.text() for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
         if not sujets_choisis:
@@ -339,6 +384,8 @@ class FenetreChoixSujets(QWidget):
     def retour_connexion(self):
         self.close()
         self.page_connexion.show()
+
+
 
 
 # ============================

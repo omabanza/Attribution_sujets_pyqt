@@ -50,5 +50,12 @@ def get_subjects():
     return [
         (1, "Projet Réseau", "Déployer une infra"),
         (2, "Projet Dev", "Créer une application PyQt"),
-        (3, "CyberSécurité", "Audit & pentest d'un SI")
+        (3, "CyberSécurité", "Audit & pentest d'un SI"),
+        # --- LES SUJETS QUI ÉTAIENT DANS FenetreChoixSujets ---
+        (100, "IA et Machine Learning", "Créer un modèle prédictif"),
+        (101, "Bases de données", "Concevoir un schéma et requêtes"),
+        (102, "Web Dev", "Développement d'un site interactif"),
+
+        # celui que tu insérais au milieu
+        (999, "Projet Réseaux", "Déployer une infrastructure")
     ]
