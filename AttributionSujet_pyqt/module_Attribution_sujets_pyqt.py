@@ -43,7 +43,20 @@ def verifier_identifiants(login, password):
 # Add alias expected by other modules (data/mettre_data, etc.)
 def login_user(login, password):
     return verifier_identifiants(login, password)
-
+def changer_mot_de_passe(login, nouveau_password):
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute(
+                "UPDATE users SET password = ? WHERE login = ?",
+                (nouveau_password, login)
+            )
+            if c.rowcount > 0:
+                return True
+            return False
+    except Exception as e:
+        print(f"Erreur lors du changement de mot de passe: {e}")
+        return False
 
 def get_subjects():
     # Tu pourras l’utiliser plus tard

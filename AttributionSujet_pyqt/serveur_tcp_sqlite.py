@@ -1,11 +1,12 @@
-# ...existing code...
 import socket
 import threading
 import signal
 import sys
-from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants
+from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants, changer_mot_de_passe
 
-# ...existing code...
+# ============================
+# Gestion des clients
+# ============================
 def gerer_client(conn, addr):
     print(f"Client connecté : {addr}")
     try:
@@ -30,6 +31,20 @@ def gerer_client(conn, addr):
                     else:
                         conn.sendall("LOGIN_EXISTE".encode("utf-8"))
 
+                # Format : CHANGE_PASSWORD:login:nouveau_mdp
+                elif message.startswith("CHANGE_PASSWORD:"):
+                    parts = message.split(":", 2)
+                    if len(parts) != 3:
+                        conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
+                        continue
+                    _, login, nouveau_mdp = parts
+                    
+                    if changer_mot_de_passe(login, nouveau_mdp):
+                        conn.sendall("PASSWORD_CHANGED".encode("utf-8"))
+                    else:
+                        conn.sendall("CHANGE_FAILED".encode("utf-8"))
+
+                # Format : login:mdp (connexion standard)
                 elif ":" in message:
                     login, mdp = message.split(":", 1)
                     if verifier_identifiants(login, mdp):
@@ -51,7 +66,9 @@ def gerer_client(conn, addr):
         except Exception:
             pass
 
-# ...existing code...
+# ============================
+# Fonction principale
+# ============================
 def main():
     init_db()
     host, port = "127.0.0.1", 55555
@@ -98,4 +115,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# ...existing code...

@@ -61,7 +61,7 @@ class FenetreConnexion(QWidget):
         btn_connexion.clicked.connect(self.connexion)
 
         lbl_creer = QLabel(
-            "Vous n'avez pas de compte ? <a style='color:white; text-decoration:none;' href='#'>Créez-en un →</a>"
+            "Vous n’avez pas de compte ? <a style='color:white; text-decoration:none;' href='#'>Créez-en un →</a>"
         )
         lbl_creer.setFont(QFont("Arial", 14))
         lbl_creer.setAlignment(Qt.AlignCenter)
@@ -246,87 +246,74 @@ class FenetreCreationCompte(QWidget):
 
 
 # ============================
-# Fenêtre Page de Changement de Mot de Passe
+# Fenêtre Changement de Mot de Passe
 # ============================
-class FenetrePageChangementMdp(QWidget):
+class FenetreChangerMdp(QWidget):
     def __init__(self, login, parent_fenetre):
         super().__init__()
         self.login = login
         self.parent_fenetre = parent_fenetre
-        self.setWindowTitle("Changement de mot de passe")
-        self.showMaximized()
-        self.setMinimumSize(self.screen().size())
-        self.resize(self.screen().size())
+        self.setWindowTitle("Changer mon mot de passe")
+        self.setFixedSize(400, 350)
 
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(70, 130, 180))
         self.setPalette(palette)
 
-        fontTitre = QFont("Arial", 28, QFont.Bold)
-        fontChamp = QFont("Arial", 16)
-        fontLabel = QFont("Arial", 14)
+        fontTitre = QFont("Arial", 20, QFont.Bold)
+        fontChamp = QFont("Arial", 14)
 
-        titre = QLabel("Changement de mot de passe")
+        titre = QLabel("Changer mon mot de passe")
         titre.setFont(fontTitre)
         titre.setStyleSheet("color:white;")
         titre.setAlignment(Qt.AlignCenter)
 
-        # Instructions
-        lbl_instructions = QLabel(
-            "Pour changer votre mot de passe, veuillez remplir les champs ci-dessous."
-        )
-        lbl_instructions.setFont(fontLabel)
-        lbl_instructions.setStyleSheet("color:white;")
-        lbl_instructions.setAlignment(Qt.AlignCenter)
-        lbl_instructions.setWordWrap(True)
-
         # Ancien mot de passe
         lbl_ancien = QLabel("Ancien mot de passe :")
-        lbl_ancien.setFont(fontLabel)
+        lbl_ancien.setFont(fontChamp)
         lbl_ancien.setStyleSheet("color:white;")
         self.ancien_mdp = QLineEdit()
         self.ancien_mdp.setEchoMode(QLineEdit.Password)
         self.ancien_mdp.setFont(fontChamp)
-        self.ancien_mdp.setStyleSheet("background:white; padding:10px; border-radius:8px;")
+        self.ancien_mdp.setStyleSheet("background:white; padding:8px; border-radius:8px;")
 
         # Nouveau mot de passe
         lbl_nouveau = QLabel("Nouveau mot de passe :")
-        lbl_nouveau.setFont(fontLabel)
+        lbl_nouveau.setFont(fontChamp)
         lbl_nouveau.setStyleSheet("color:white;")
         self.nouveau_mdp = QLineEdit()
         self.nouveau_mdp.setEchoMode(QLineEdit.Password)
         self.nouveau_mdp.setFont(fontChamp)
-        self.nouveau_mdp.setStyleSheet("background:white; padding:10px; border-radius:8px;")
+        self.nouveau_mdp.setStyleSheet("background:white; padding:8px; border-radius:8px;")
 
         # Confirmation
         lbl_confirmation = QLabel("Confirmer le nouveau mot de passe :")
-        lbl_confirmation.setFont(fontLabel)
+        lbl_confirmation.setFont(fontChamp)
         lbl_confirmation.setStyleSheet("color:white;")
         self.confirmation_mdp = QLineEdit()
         self.confirmation_mdp.setEchoMode(QLineEdit.Password)
         self.confirmation_mdp.setFont(fontChamp)
-        self.confirmation_mdp.setStyleSheet("background:white; padding:10px; border-radius:8px;")
+        self.confirmation_mdp.setStyleSheet("background:white; padding:8px; border-radius:8px;")
 
         # Checkbox pour afficher les mots de passe
         self.chk_afficher = QCheckBox("Afficher les mots de passe")
-        self.chk_afficher.setStyleSheet("color:white; font-size:14px;")
+        self.chk_afficher.setStyleSheet("color:white; font-size:12px;")
         self.chk_afficher.stateChanged.connect(self.toggle_mdp_visibility)
 
         # Boutons
         btn_changer = QPushButton("Changer le mot de passe")
         btn_changer.setFont(fontChamp)
-        btn_changer.setStyleSheet("background:darkblue; color:white; padding:12px; border-radius:10px;")
+        btn_changer.setStyleSheet("background:darkblue; color:white; padding:10px; border-radius:10px;")
         btn_changer.clicked.connect(self.changer_mdp)
 
-        btn_annuler = QPushButton("Retour aux sujets")
+        btn_annuler = QPushButton("Annuler")
         btn_annuler.setFont(fontChamp)
-        btn_annuler.setStyleSheet("background:darkred; color:white; padding:12px; border-radius:10px;")
-        btn_annuler.clicked.connect(self.retour_sujets)
+        btn_annuler.setStyleSheet("background:darkred; color:white; padding:10px; border-radius:10px;")
+        btn_annuler.clicked.connect(self.close)
 
-        # Layout du formulaire
+        # Layout
         form_layout = QVBoxLayout()
-        form_layout.setAlignment(Qt.AlignCenter)
-        form_layout.setSpacing(15)
+        form_layout.setSpacing(10)
         
         fields = [
             (lbl_ancien, self.ancien_mdp),
@@ -345,18 +332,12 @@ class FenetrePageChangementMdp(QWidget):
 
         frame = QFrame()
         frame.setLayout(form_layout)
-        frame.setFixedWidth(450)
-        frame.setStyleSheet("background-color: rgba(255,255,255,0.1); border-radius:15px; padding:30px;")
+        frame.setStyleSheet("background-color: rgba(255,255,255,0.1); border-radius:15px; padding:20px;")
 
-        # Layout principal
         main_layout = QVBoxLayout()
-        main_layout.addStretch()
         main_layout.addWidget(titre)
         main_layout.addSpacing(20)
-        main_layout.addWidget(lbl_instructions)
-        main_layout.addSpacing(30)
-        main_layout.addWidget(frame, alignment=Qt.AlignCenter)
-        main_layout.addStretch()
+        main_layout.addWidget(frame)
         self.setLayout(main_layout)
 
     def toggle_mdp_visibility(self):
@@ -402,16 +383,12 @@ class FenetrePageChangementMdp(QWidget):
 
             if reponse == "PASSWORD_CHANGED":
                 QMessageBox.information(self, "Succès", "Mot de passe changé avec succès ✅")
-                self.retour_sujets()
+                self.close()
             else:
                 QMessageBox.warning(self, "Erreur", "Échec du changement de mot de passe.")
                 
         except Exception:
             QMessageBox.critical(self, "Erreur", "Serveur non disponible ❌")
-
-    def retour_sujets(self):
-        self.close()
-        self.parent_fenetre.show()
 
 
 # ============================
@@ -422,7 +399,7 @@ class FenetreChoixSujets(QWidget):
         super().__init__()
         self.login = login
         self.page_connexion = page_connexion
-        self.fenetre_changement_mdp = None
+        self.fenetre_changer_mdp = None
         self.setWindowTitle(f"Choix de sujets - {login}")
         self.showMaximized()
         self.setMinimumSize(self.screen().size())
@@ -445,49 +422,25 @@ class FenetreChoixSujets(QWidget):
         lbl_icone = QLabel()
         lbl_icone.setPixmap(QPixmap("pv.png").scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
-        # Création du menu déroulant (QComboBox)
-        self.combo_login = QComboBox()
-        self.combo_login.setFixedWidth(180)
-        self.combo_login.setFont(QFont("Arial", 12))
-        self.combo_login.addItem(f"👤 {login}")  # Premier élément avec le login
-        self.combo_login.addItem("🔄 Changer le mot de passe")  # Option pour changer le mot de passe
-        self.combo_login.setStyleSheet("""
-            QComboBox {
-                color: white;
-                background-color: transparent;
-                border: 2px solid white;
-                border-radius: 12px;
-                padding: 5px 15px;
-                min-width: 180px;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 8px solid white;
-                margin-right: 10px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #4682B4;
-                color: white;
-                selection-background-color: #5A9BD3;
-                border: 1px solid white;
-                border-radius: 5px;
-            }
-            QComboBox:hover {
-                background-color: rgba(255, 255, 255, 0.1);
-            }
+        lbl_user = QLabel(self.login)
+        lbl_user.setFont(QFont("Arial", 14))
+        lbl_user.setStyleSheet("""
+            color:white;
+            padding:5px 12px;
+            border:2px solid white;
+            border-radius:12px;
         """)
-        self.combo_login.currentIndexChanged.connect(self.on_combo_changed)
 
         box_user = QHBoxLayout()
         box_user.addWidget(lbl_icone)
-        box_user.addWidget(self.combo_login)
+        box_user.addWidget(lbl_user)
         box_user.setSpacing(10)
+
+        # Bouton pour changer le mot de passe
+        btn_changer_mdp = QPushButton("Changer mon mot de passe")
+        btn_changer_mdp.setFont(QFont("Arial", 12))
+        btn_changer_mdp.setStyleSheet("background:orange; color:white; padding:8px; border-radius:8px;")
+        btn_changer_mdp.clicked.connect(self.ouvrir_changer_mdp)
 
         btn_retour = QPushButton("Retour à la connexion")
         btn_retour.setFont(QFont("Arial", 16))
@@ -497,6 +450,8 @@ class FenetreChoixSujets(QWidget):
         layout_haut = QHBoxLayout()
         layout_haut.addWidget(lbl_theme)
         layout_haut.addStretch()
+        layout_haut.addWidget(btn_changer_mdp)
+        layout_haut.addSpacing(10)
         layout_haut.addLayout(box_user)
         layout_haut.addSpacing(20)
         layout_haut.addWidget(btn_retour)
@@ -559,18 +514,10 @@ class FenetreChoixSujets(QWidget):
     # ------------------------------
     # Fonctions
     # ------------------------------
-    def on_combo_changed(self, index):
-        """Gère le changement de sélection dans le menu déroulant"""
-        if index == 1:  # Si l'utilisateur sélectionne "Changer le mot de passe"
-            self.ouvrir_changement_mdp()
-            # Remettre la sélection sur le login
-            self.combo_login.setCurrentIndex(0)
-
-    def ouvrir_changement_mdp(self):
+    def ouvrir_changer_mdp(self):
         """Ouvre la fenêtre de changement de mot de passe"""
-        self.hide()  # Cache la fenêtre des sujets
-        self.fenetre_changement_mdp = FenetrePageChangementMdp(self.login, self)
-        self.fenetre_changement_mdp.show()
+        self.fenetre_changer_mdp = FenetreChangerMdp(self.login, self)
+        self.fenetre_changer_mdp.show()
 
     def valider_choix(self):
         sujets_choisis = [cb.text() for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
