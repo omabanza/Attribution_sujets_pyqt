@@ -57,6 +57,17 @@ def changer_mot_de_passe(login, nouveau_password):
     except Exception as e:
         print(f"Erreur lors du changement de mot de passe: {e}")
         return False
+def supprimer_compte(login):
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute("DELETE FROM users WHERE login = ?", (login,))
+                if c.rowcount > 0:
+                    return True
+                return False
+        except Exception as e:
+            print(f"Erreur lors de la suppression du compte: {e}")
+            return False
 
 def get_subjects():
     # Tu pourras l’utiliser plus tard

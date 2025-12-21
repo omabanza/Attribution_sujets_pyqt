@@ -415,6 +415,194 @@ class FenetrePageChangementMdp(QWidget):
 
 
 # ============================
+# Fenêtre Suppression de Compte
+# ============================
+class FenetreSuppressionCompte(QWidget):
+    def __init__(self, login, parent_fenetre, page_connexion):
+        super().__init__()
+        self.login = login
+        self.parent_fenetre = parent_fenetre
+        self.page_connexion = page_connexion
+        self.setWindowTitle("Suppression de compte")
+        self.setFixedSize(550, 450)
+        
+        # Centrer la fenêtre
+        screen_geometry = QApplication.desktop().screenGeometry()
+        x = (screen_geometry.width() - self.width()) // 2
+        y = (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
+
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(220, 80, 80))
+        self.setPalette(palette)
+
+        fontTitre = QFont("Arial", 22, QFont.Bold)
+        fontLabel = QFont("Arial", 11)
+        fontChamp = QFont("Arial", 12)
+
+        # Icône d'avertissement
+        lbl_icone = QLabel("⚠️")
+        lbl_icone.setFont(QFont("Arial", 48))
+        lbl_icone.setAlignment(Qt.AlignCenter)
+        lbl_icone.setStyleSheet("color:yellow;")
+
+        # Titre
+        titre = QLabel("SUPPRESSION DE COMPTE")
+        titre.setFont(fontTitre)
+        titre.setStyleSheet("color:white;")
+        titre.setAlignment(Qt.AlignCenter)
+
+        # Message d'avertissement
+        lbl_message = QLabel(
+            "<center><b style='color:#FFD700;'>ATTENTION : Action irréversible !</b></center><br>"
+            "<p style='color:white; line-height:1.4;'>"
+            "Vous êtes sur le point de supprimer définitivement votre compte.<br><br>"
+            "<b>Conséquences :</b><br>"
+            "• Toutes vos données seront effacées<br>"
+            "• Vous perdrez l'accès à votre espace<br>"
+            "• Vos choix de sujets seront perdus<br>"
+            "• Cette action ne peut être annulée"
+            "</p>"
+        )
+        lbl_message.setFont(fontLabel)
+        lbl_message.setAlignment(Qt.AlignCenter)
+        lbl_message.setWordWrap(True)
+
+        # Section mot de passe
+        lbl_mdp = QLabel("Mot de passe actuel :")
+        lbl_mdp.setFont(fontLabel)
+        lbl_mdp.setStyleSheet("color:white;")
+        
+        self.champ_mdp = QLineEdit()
+        self.champ_mdp.setEchoMode(QLineEdit.Password)
+        self.champ_mdp.setFont(fontChamp)
+        self.champ_mdp.setStyleSheet("""
+            QLineEdit {
+                background: white;
+                padding: 10px;
+                border-radius: 8px;
+                border: 2px solid #ccc;
+            }
+        """)
+
+        # Checkbox de confirmation
+        self.check_confirmation = QCheckBox("Je comprends et accepte les conséquences")
+        self.check_confirmation.setFont(fontLabel)
+        self.check_confirmation.setStyleSheet("color:white;")
+
+        # Boutons
+        btn_supprimer = QPushButton("🗑️ Supprimer mon compte")
+        btn_supprimer.setFont(QFont("Arial", 13, QFont.Bold))
+        btn_supprimer.setStyleSheet("""
+            QPushButton {
+                background: darkred;
+                color: white;
+                padding: 12px;
+                border-radius: 8px;
+                border: 2px solid #FFD700;
+            }
+            QPushButton:hover {
+                background: #FF4444;
+                border: 2px solid white;
+            }
+            QPushButton:disabled {
+                background: gray;
+                border: 2px solid #999;
+            }
+        """)
+        btn_supprimer.clicked.connect(self.supprimer_compte)
+        
+        btn_annuler = QPushButton("Annuler")
+        btn_annuler.setFont(fontChamp)
+        btn_annuler.setStyleSheet("""
+            QPushButton {
+                background: #4682B4;
+                color: white;
+                padding: 10px;
+                border-radius: 8px;
+            }
+            QPushButton:hover {
+                background: #5A9BD3;
+            }
+        """)
+        btn_annuler.clicked.connect(self.close)
+
+        # Layout principal
+        layout = QVBoxLayout()
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        layout.addWidget(lbl_icone)
+        layout.addWidget(titre)
+        layout.addWidget(lbl_message)
+        layout.addWidget(lbl_mdp)
+        layout.addWidget(self.champ_mdp)
+        layout.addWidget(self.check_confirmation, 0, Qt.AlignCenter)
+        layout.addSpacing(10)
+        layout.addWidget(btn_supprimer)
+        layout.addWidget(btn_annuler)
+
+        # Activer/désactiver le bouton de suppression
+        self.check_confirmation.stateChanged.connect(self.verifier_bouton)
+        self.champ_mdp.textChanged.connect(self.verifier_bouton)
+        self.verifier_bouton()
+
+        self.setLayout(layout)
+
+    def verifier_bouton(self):
+        """Active le bouton seulement si toutes les conditions sont remplies"""
+        bouton = self.findChild(QPushButton, None)
+        if bouton and bouton.text().startswith("🗑️"):
+            mdp_ok = bool(self.champ_mdp.text().strip())
+            confirme_ok = self.check_confirmation.isChecked()
+            bouton.setEnabled(mdp_ok and confirme_ok)
+
+    def supprimer_compte(self):
+        mdp = self.champ_mdp.text().strip()
+
+        # Dernière confirmation
+        reponse = QMessageBox.question(
+            self,
+            "Dernière confirmation",
+            "<b>Êtes-vous ABSOLUMENT SÛR ?</b><br><br>"
+            "Cette action supprimera définitivement votre compte.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reponse != QMessageBox.Yes:
+            return
+
+        # Vérifier le mot de passe
+        try:
+            client = socket.socket()
+            client.connect((SERVER_IP, SERVER_PORT))
+            client.send(f"{self.login}:{mdp}".encode())
+            reponse = client.recv(1024).decode()
+            
+            if reponse != "OK":
+                QMessageBox.warning(self, "Erreur", "Mot de passe incorrect.")
+                client.close()
+                return
+            
+            # Demande de suppression
+            client.send(f"DELETE_ACCOUNT:{self.login}".encode())
+            reponse = client.recv(1024).decode()
+            client.close()
+
+            if reponse == "ACCOUNT_DELETED":
+                QMessageBox.information(self, "Succès", "Compte supprimé avec succès ✅")
+                self.close()
+                self.parent_fenetre.close()
+                self.page_connexion.show()
+            else:
+                QMessageBox.warning(self, "Erreur", "Échec de la suppression.")
+                
+        except Exception:
+            QMessageBox.critical(self, "Erreur", "Serveur non disponible ❌")
+
+
+# ============================
 # Fenêtre Choix de Sujets (Checkbox)
 # ============================
 class FenetreChoixSujets(QWidget):
@@ -423,6 +611,7 @@ class FenetreChoixSujets(QWidget):
         self.login = login
         self.page_connexion = page_connexion
         self.fenetre_changement_mdp = None
+        self.fenetre_suppression = None
         self.setWindowTitle(f"Choix de sujets - {login}")
         self.showMaximized()
         self.setMinimumSize(self.screen().size())
@@ -442,51 +631,72 @@ class FenetreChoixSujets(QWidget):
         lbl_theme.setFont(QFont("Arial", 18, QFont.Bold))
         lbl_theme.setStyleSheet("color:white;")
 
+        # Création d'un bouton pour le menu login (au lieu d'un QComboBox)
+        self.btn_menu_login = QPushButton(f"👤 {login}")
+        self.btn_menu_login.setFixedWidth(200)
+        self.btn_menu_login.setFont(QFont("Arial", 12, QFont.Bold))
+        self.btn_menu_login.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background-color: rgba(255, 255, 255, 0.1);
+                border: 2px solid white;
+                border-radius: 12px;
+                padding: 10px 15px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+            QPushButton::menu-indicator {
+                image: none;
+                width: 0px;
+            }
+        """)
+        
+        # Création du menu contextuel
+        self.menu_login = QMenu(self.btn_menu_login)
+        self.menu_login.setStyleSheet("""
+            QMenu {
+                background-color: #4682B4;
+                border: 2px solid white;
+                border-radius: 8px;
+                padding: 5px;
+            }
+            QMenu::item {
+                color: white;
+                padding: 8px 20px;
+                border-radius: 5px;
+                margin: 2px;
+            }
+            QMenu::item:selected {
+                background-color: #5A9BD3;
+            }
+            QMenu::item:disabled {
+                color: #AAAAAA;
+            }
+        """)
+        
+        # Actions du menu
+        self.action_changer_mdp = self.menu_login.addAction("🔄 Changer le mot de passe")
+        self.action_supprimer_compte = self.menu_login.addAction("🗑️ Supprimer mon compte")
+        self.menu_login.addSeparator()
+        self.action_deconnexion = self.menu_login.addAction("🚪 Déconnexion")
+        
+        # Connexion des actions
+        self.action_changer_mdp.triggered.connect(self.ouvrir_changement_mdp)
+        self.action_supprimer_compte.triggered.connect(self.ouvrir_suppression_compte)
+        self.action_deconnexion.triggered.connect(self.retour_connexion)
+        
+        # Assigner le menu au bouton
+        self.btn_menu_login.setMenu(self.menu_login)
+        
+        # Icône à côté du bouton
         lbl_icone = QLabel()
         lbl_icone.setPixmap(QPixmap("pv.png").scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
-        # Création du menu déroulant (QComboBox)
-        self.combo_login = QComboBox()
-        self.combo_login.setFixedWidth(180)
-        self.combo_login.setFont(QFont("Arial", 12))
-        self.combo_login.addItem(f"👤 {login}")  # Premier élément avec le login
-        self.combo_login.addItem("🔄 Changer le mot de passe")  # Option pour changer le mot de passe
-        self.combo_login.setStyleSheet("""
-            QComboBox {
-                color: white;
-                background-color: transparent;
-                border: 2px solid white;
-                border-radius: 12px;
-                padding: 5px 15px;
-                min-width: 180px;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 8px solid white;
-                margin-right: 10px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #4682B4;
-                color: white;
-                selection-background-color: #5A9BD3;
-                border: 1px solid white;
-                border-radius: 5px;
-            }
-            QComboBox:hover {
-                background-color: rgba(255, 255, 255, 0.1);
-            }
-        """)
-        self.combo_login.currentIndexChanged.connect(self.on_combo_changed)
-
         box_user = QHBoxLayout()
         box_user.addWidget(lbl_icone)
-        box_user.addWidget(self.combo_login)
+        box_user.addWidget(self.btn_menu_login)
         box_user.setSpacing(10)
 
         btn_retour = QPushButton("Retour à la connexion")
@@ -559,18 +769,15 @@ class FenetreChoixSujets(QWidget):
     # ------------------------------
     # Fonctions
     # ------------------------------
-    def on_combo_changed(self, index):
-        """Gère le changement de sélection dans le menu déroulant"""
-        if index == 1:  # Si l'utilisateur sélectionne "Changer le mot de passe"
-            self.ouvrir_changement_mdp()
-            # Remettre la sélection sur le login
-            self.combo_login.setCurrentIndex(0)
-
     def ouvrir_changement_mdp(self):
         """Ouvre la fenêtre de changement de mot de passe"""
-        self.hide()  # Cache la fenêtre des sujets
         self.fenetre_changement_mdp = FenetrePageChangementMdp(self.login, self)
         self.fenetre_changement_mdp.show()
+
+    def ouvrir_suppression_compte(self):
+        """Ouvre la fenêtre de suppression de compte"""
+        self.fenetre_suppression = FenetreSuppressionCompte(self.login, self, self.page_connexion)
+        self.fenetre_suppression.show()
 
     def valider_choix(self):
         sujets_choisis = [cb.text() for _id, cb in self.checkbox_dict.items() if cb.isChecked()]

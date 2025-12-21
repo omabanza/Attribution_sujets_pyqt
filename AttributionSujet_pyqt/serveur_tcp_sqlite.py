@@ -2,7 +2,7 @@ import socket
 import threading
 import signal
 import sys
-from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants, changer_mot_de_passe
+from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants, changer_mot_de_passe, supprimer_compte
 
 # ============================
 # Gestion des clients
@@ -43,6 +43,19 @@ def gerer_client(conn, addr):
                         conn.sendall("PASSWORD_CHANGED".encode("utf-8"))
                     else:
                         conn.sendall("CHANGE_FAILED".encode("utf-8"))
+
+                # Format : DELETE_ACCOUNT:login
+                elif message.startswith("DELETE_ACCOUNT:"):
+                    parts = message.split(":", 1)
+                    if len(parts) != 2:
+                        conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
+                        continue
+                    _, login = parts
+                    
+                    if supprimer_compte(login):
+                        conn.sendall("ACCOUNT_DELETED".encode("utf-8"))
+                    else:
+                        conn.sendall("DELETE_FAILED".encode("utf-8"))
 
                 # Format : login:mdp (connexion standard)
                 elif ":" in message:
