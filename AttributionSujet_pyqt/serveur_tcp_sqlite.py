@@ -51,6 +51,8 @@ def gerer_client(conn, addr):
                         for user in utilisateurs:
                             user_id = user[0]
                             nb_choix = get_nb_choix_utilisateur(user_id)
+                            # user contient: [id, nom, prenom, login]
+                            # Ajouter nb_choix à la fin
                             utilisateurs_avec_choix.append(user + (nb_choix,))
                         response = "UTILISATEURS:" + str(utilisateurs_avec_choix)
                         conn.sendall(response.encode("utf-8"))

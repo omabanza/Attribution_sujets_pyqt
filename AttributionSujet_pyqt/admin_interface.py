@@ -220,37 +220,58 @@ class AdminPanel(QMainWindow):
     def init_tab_gestion_utilisateurs(self):
         layout = QVBoxLayout()
         
-        # En-tête
+        # En-tête avec boutons
         header = QHBoxLayout()
         lbl_titre = QLabel("👥 Gestion des Utilisateurs")
         lbl_titre.setStyleSheet("color: #FFD700; font-size: 20px; font-weight: bold;")
         header.addWidget(lbl_titre)
         header.addStretch()
         
+        # Bouton actualiser
+        btn_actualiser = QPushButton("🔄 Actualiser")
+        btn_actualiser.setStyleSheet("""
+            QPushButton {
+                background: #2196F3;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #42A5F5;
+            }
+        """)
+        btn_actualiser.clicked.connect(self.load_utilisateurs)
+        
+        header.addWidget(btn_actualiser)
         layout.addLayout(header)
         
-        # Table des utilisateurs
+        # **IMPORTANT : Créer la table des utilisateurs - SANS Date Inscription**
         self.table_utilisateurs = QTableWidget()
-        self.table_utilisateurs.setColumnCount(6)
+        self.table_utilisateurs.setColumnCount(5)  # Changé de 6 à 5 colonnes
         self.table_utilisateurs.setHorizontalHeaderLabels([
-            "ID", "Nom", "Prénom", "Login", 
-            "Date Inscription", "Nb Choix"
+            "ID", "Nom", "Prénom", "Login", "Nb Choix"  # Retiré "Date Inscription"
         ])
         self.table_utilisateurs.horizontalHeader().setStretchLastSection(True)
+        self.table_utilisateurs.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_utilisateurs.setStyleSheet("""
             QTableWidget {
                 background: white;
                 gridline-color: #CCC;
                 font-size: 12px;
-                border: 2px solid #4CAF50;
+                border: 2px solid #FFD700;
                 border-radius: 5px;
             }
             QHeaderView::section {
-                background: #4CAF50;
-                color: white;
+                background: #FFD700;
+                color: #333;
                 padding: 10px;
                 font-weight: bold;
                 border: 1px solid #CCC;
+            }
+            QTableWidget::item:selected {
+                background-color: #FFD700;
+                color: #333;
             }
         """)
         
@@ -449,7 +470,7 @@ class AdminPanel(QMainWindow):
             QMessageBox.critical(self, "Erreur", f"Impossible de charger les sujets: {e}")
     
     def load_utilisateurs(self):
-        """Charge la liste des utilisateurs depuis le serveur"""
+        """Charge la liste des utilisateurs depuis le serveur - SANS Date Inscription"""
         try:
             reponse = self.envoyer_requete("GET_ALL_USERS")
             if not reponse:
@@ -463,12 +484,23 @@ class AdminPanel(QMainWindow):
                     
                     self.table_utilisateurs.setRowCount(len(utilisateurs))
                     for row, user in enumerate(utilisateurs):
-                        for col in range(6):  # 6 colonnes
-                            valeur = user[col] if col < len(user) else ""
+                        # Ajuster pour 5 colonnes au lieu de 6
+                        # user contient: [id, nom, prenom, login, date_inscription, nb_choix]
+                        # Nous sautons la date_inscription (index 4)
+                        user_data = [
+                            user[0],  # ID
+                            user[1],  # Nom
+                            user[2],  # Prénom
+                            user[3],  # Login
+                            user[5] if len(user) > 5 else "0"  # Nb Choix (sauter date_inscription)
+                        ]
+                        
+                        for col in range(5):  # 5 colonnes maintenant
+                            valeur = user_data[col] if col < len(user_data) else ""
                             item = QTableWidgetItem(str(valeur))
                             
-                            # Colorer la colonne "Nb Choix"
-                            if col == 5:  # Colonne Nb Choix
+                            # Colorer la colonne "Nb Choix" (maintenant à l'index 4)
+                            if col == 4:  # Colonne Nb Choix
                                 try:
                                     nb = int(valeur)
                                     if nb == 0:
@@ -741,7 +773,7 @@ class AdminPanel(QMainWindow):
             # Calculer le nombre total de choix
             total_choix = 0
             for row in range(utilisateurs):
-                item = self.table_utilisateurs.item(row, 5)
+                item = self.table_utilisateurs.item(row, 4)  # Index 4 pour "Nb Choix" (5ème colonne)
                 if item:
                     try:
                         total_choix += int(item.text())
@@ -847,12 +879,3 @@ if __name__ == "__main__":
     palette.setColor(QPalette.AlternateBase, QColor(40, 40, 56))
     palette.setColor(QPalette.Text, Qt.white)
     palette.setColor(QPalette.Button, QColor(50, 50, 70))
-    palette.setColor(QPalette.ButtonText, Qt.white)
-    palette.setColor(QPalette.Highlight, QColor(255, 215, 0))
-    palette.setColor(QPalette.HighlightedText, QColor(40, 40, 56))
-    
-    app.setPalette(palette)
-    
-    admin_panel = AdminPanel()
-    admin_panel.show()
-    sys.exit(app.exec_())

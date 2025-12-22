@@ -109,7 +109,11 @@ class FenetreConnexion(QWidget):
             reponse = client.recv(1024).decode()
             client.close()
 
-            if reponse == "OK":
+            if reponse == "ADMIN_OK":  # Si c'est l'admin
+                self.hide()
+                # Lancer l'interface admin
+                self.lancer_interface_admin()
+            elif reponse == "OK":  # Si c'est un stagiaire normal
                 self.hide()
                 self.choix_sujets = FenetreChoixSujets(login, self)
                 self.choix_sujets.show()
@@ -117,6 +121,23 @@ class FenetreConnexion(QWidget):
                 QMessageBox.warning(self, "Erreur", "Identifiants incorrects ❌")
         except Exception:
             QMessageBox.critical(self, "Erreur", "Serveur non disponible ❌")
+
+    def lancer_interface_admin(self):
+        """Lance l'interface d'administration"""
+        try:
+            # Importer et lancer l'interface admin
+            from admin_interface import AdminPanel
+            
+            # Créer directement le panneau admin
+            self.admin_panel = AdminPanel()
+            self.admin_panel.parent_fenetre = self  # Pour pouvoir revenir
+            self.admin_panel.show()
+        except ImportError as e:
+            QMessageBox.critical(self, "Erreur", 
+                f"Interface admin non disponible:\n{e}\n\n"
+                f"Assurez-vous que le fichier admin_interface.py existe dans le même dossier.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur inattendue: {e}")
 
     def ouvrir_page_creation(self):
         self.hide()
