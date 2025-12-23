@@ -98,29 +98,73 @@ class FenetreConnexion(QWidget):
 
     def toggle_mdp(self):
         self.mdp.setEchoMode(QLineEdit.Normal if self.chk_afficher.isChecked() else QLineEdit.Password)
-
     def connexion(self):
         login = self.login.text().strip()
         mdp = self.mdp.text().strip()
+        
+        print(f"DEBUG: Tentative connexion - Login: '{login}', MDP: '{mdp}'")
+        
+        # Vérifier que les champs ne sont pas vides
+        if not login or not mdp:
+            QMessageBox.warning(self, "Erreur", "Veuillez remplir tous les champs")
+            return
+            
         try:
+            print(f"DEBUG: Création du socket...")
             client = socket.socket()
+            client.settimeout(5)  # Timeout de 5 secondes
+            
+            print(f"DEBUG: Connexion à {SERVER_IP}:{SERVER_PORT}...")
             client.connect((SERVER_IP, SERVER_PORT))
-            client.send(f"{login}:{mdp}".encode())
+            print("DEBUG: ✅ Connecté au serveur")
+            
+            # Préparer le message
+            message = f"{login}:{mdp}"
+            print(f"DEBUG: Envoi du message: '{message}'")
+            
+            # Envoyer
+            client.send(message.encode())
+            
+            # Recevoir la réponse
+            print("DEBUG: Attente réponse...")
             reponse = client.recv(1024).decode()
+            print(f"DEBUG: Réponse reçue: '{reponse}'")
+            
             client.close()
 
+            # Traiter la réponse
             if reponse == "ADMIN_OK":  # Si c'est l'admin
+                print("DEBUG: Connexion admin réussie")
                 self.hide()
-                # Lancer l'interface admin
                 self.lancer_interface_admin()
             elif reponse == "OK":  # Si c'est un stagiaire normal
+                print("DEBUG: Connexion utilisateur réussie")
                 self.hide()
                 self.choix_sujets = FenetreChoixSujets(login, self)
                 self.choix_sujets.show()
-            else:
+            elif reponse == "NOK":  # Identifiants incorrects
+                print("DEBUG: Identifiants incorrects")
                 QMessageBox.warning(self, "Erreur", "Identifiants incorrects ❌")
-        except Exception:
-            QMessageBox.critical(self, "Erreur", "Serveur non disponible ❌")
+            else:
+                print(f"DEBUG: Réponse inattendue: {reponse}")
+                QMessageBox.warning(self, "Erreur", f"Réponse serveur inattendue: '{reponse}'")
+                
+        except socket.timeout:
+            print("DEBUG: ❌ Timeout - Serveur ne répond pas")
+            QMessageBox.critical(self, "Erreur", "Le serveur ne répond pas (timeout de 5s)")
+        except ConnectionRefusedError:
+            print("DEBUG: ❌ Connexion refusée")
+            QMessageBox.critical(self, "Erreur", 
+                "Impossible de se connecter au serveur ❌\n\n"
+                "Assurez-vous que le serveur est démarré:\n"
+                "1. Ouvrez un terminal\n"
+                "2. Exécutez: python serveur_tcp_sqlite.py\n"
+                "3. Attendez le message 'Serveur en écoute'")
+        except Exception as e:
+            print(f"DEBUG: ❌ Exception: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Erreur", f"Erreur de connexion: {str(e)}")
 
     def lancer_interface_admin(self):
         """Lance l'interface d'administration"""
@@ -626,6 +670,12 @@ class FenetreSuppressionCompte(QWidget):
 # ============================
 # Fenêtre Choix de Sujets (Checkbox)
 # ============================
+# ============================
+# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE
+# ============================
+# ============================
+# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE
+# ============================
 class FenetreChoixSujets(QWidget):
     def __init__(self, login, page_connexion):
         super().__init__()
@@ -643,7 +693,8 @@ class FenetreChoixSujets(QWidget):
         self.setPalette(palette)
 
         fontTitre = QFont("Arial", 28, QFont.Bold)
-        fontSujet = QFont("Arial", 16)
+        fontSujet = QFont("Arial", 14)
+        fontDetail = QFont("Arial", 12)
 
         # ------------------------------
         # Haut : thème à gauche + login/icône/retour à droite
@@ -652,7 +703,7 @@ class FenetreChoixSujets(QWidget):
         lbl_theme.setFont(QFont("Arial", 18, QFont.Bold))
         lbl_theme.setStyleSheet("color:white;")
 
-        # Création d'un bouton pour le menu login (au lieu d'un QComboBox)
+        # Bouton menu login
         self.btn_menu_login = QPushButton(f"👤 {login}")
         self.btn_menu_login.setFixedWidth(200)
         self.btn_menu_login.setFont(QFont("Arial", 12, QFont.Bold))
@@ -674,7 +725,7 @@ class FenetreChoixSujets(QWidget):
             }
         """)
         
-        # Création du menu contextuel
+        # Menu contextuel
         self.menu_login = QMenu(self.btn_menu_login)
         self.menu_login.setStyleSheet("""
             QMenu {
@@ -697,23 +748,24 @@ class FenetreChoixSujets(QWidget):
             }
         """)
         
-        # Actions du menu
+        # Actions du menu - NE PAS CONNECTER LES SIGNALS ICI
         self.action_changer_mdp = self.menu_login.addAction("🔄 Changer le mot de passe")
         self.action_supprimer_compte = self.menu_login.addAction("🗑️ Supprimer mon compte")
         self.menu_login.addSeparator()
         self.action_deconnexion = self.menu_login.addAction("🚪 Déconnexion")
         
-        # Connexion des actions
-        self.action_changer_mdp.triggered.connect(self.ouvrir_changement_mdp)
-        self.action_supprimer_compte.triggered.connect(self.ouvrir_suppression_compte)
-        self.action_deconnexion.triggered.connect(self.retour_connexion)
-        
         # Assigner le menu au bouton
         self.btn_menu_login.setMenu(self.menu_login)
         
-        # Icône à côté du bouton
+        # Icône
         lbl_icone = QLabel()
-        lbl_icone.setPixmap(QPixmap("pv.png").scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # Vérifier si le fichier existe avant de charger
+        try:
+            lbl_icone.setPixmap(QPixmap("pv.png").scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        except:
+            # Si l'image n'existe pas, utiliser un texte
+            lbl_icone.setText("👤")
+            lbl_icone.setFont(QFont("Arial", 20))
 
         box_user = QHBoxLayout()
         box_user.addWidget(lbl_icone)
@@ -735,93 +787,290 @@ class FenetreChoixSujets(QWidget):
         # ------------------------------
         # Titre centré
         # ------------------------------
-        titre = QLabel("Choisissez vos sujets")
+        titre = QLabel("📋 Sujets disponibles pour votre choix")
         titre.setFont(fontTitre)
         titre.setStyleSheet("color:white;")
         titre.setAlignment(Qt.AlignCenter)
 
         # ------------------------------
-        # Sujets simples (checkbox) au centre
+        # Frame pour les sujets avec défilement
         # ------------------------------
-        self.sujets = get_subjects()
-        self.checkbox_dict = {}
-        sujets_layout = QVBoxLayout()
-        sujets_layout.setAlignment(Qt.AlignCenter)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: rgba(255, 255, 255, 0.1);
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 0.5);
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 255, 255, 0.8);
+            }
+        """)
+        
+        # Widget conteneur pour les sujets
+        self.sujets_widget = QWidget()
+        self.sujets_layout = QVBoxLayout(self.sujets_widget)
+        self.sujets_layout.setSpacing(15)
+        self.sujets_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Charger les sujets
+        self.charger_sujets()
+        
+        self.scroll_area.setWidget(self.sujets_widget)
 
-        for _id, titre_sujet, description in self.sujets:
-            cb = QCheckBox(f"{titre_sujet} - {description}")
-            cb.setFont(fontSujet)
-            cb.setStyleSheet("color:white;")
-            sujets_layout.addWidget(cb)
-            self.checkbox_dict[_id] = cb
+        # ------------------------------
+        # Informations en bas
+        # ------------------------------
+        info_label = QLabel("ℹ️ Sélectionnez les sujets qui vous intéressent (vous pouvez en choisir plusieurs)")
+        info_label.setFont(fontDetail)
+        info_label.setStyleSheet("color: #FFD700; background: rgba(0, 0, 0, 0.3); padding: 10px; border-radius: 8px;")
+        info_label.setAlignment(Qt.AlignCenter)
 
         # ------------------------------
         # Boutons Valider / Résultats
         # ------------------------------
-        btn_valider = QPushButton("Valider mes choix")
-        btn_valider.setFont(fontSujet)
-        btn_valider.setStyleSheet("background:darkblue; color:white; padding:12px; border-radius:10px;")
+        btn_valider = QPushButton("✅ Valider mes choix")
+        btn_valider.setFont(QFont("Arial", 16))
+        btn_valider.setStyleSheet("""
+            QPushButton {
+                background: #2E7D32;
+                color: white;
+                padding: 15px 30px;
+                border-radius: 12px;
+                font-weight: bold;
+                border: 2px solid #4CAF50;
+            }
+            QPushButton:hover {
+                background: #388E3C;
+            }
+            QPushButton:pressed {
+                background: #1B5E20;
+            }
+        """)
         btn_valider.clicked.connect(self.valider_choix)
 
-        btn_resultat = QPushButton("Résultats")
-        btn_resultat.setFont(fontSujet)
-        btn_resultat.setStyleSheet("background:darkgreen; color:white; padding:12px; border-radius:10px;")
+        btn_resultat = QPushButton("📊 Résultats")
+        btn_resultat.setFont(QFont("Arial", 16))
+        btn_resultat.setStyleSheet("""
+            QPushButton {
+                background: #1565C0;
+                color: white;
+                padding: 15px 30px;
+                border-radius: 12px;
+                font-weight: bold;
+                border: 2px solid #2196F3;
+            }
+            QPushButton:hover {
+                background: #1976D2;
+            }
+        """)
+        # Pour l'instant, ne fait rien - à implémenter plus tard
+        btn_resultat.clicked.connect(self.afficher_resultats)
 
         layout_boutons = QHBoxLayout()
         layout_boutons.setAlignment(Qt.AlignCenter)
+        layout_boutons.setSpacing(30)
         layout_boutons.addWidget(btn_valider)
         layout_boutons.addWidget(btn_resultat)
 
         # ------------------------------
-        # Layout principal avec sujets centrés verticalement
+        # Layout principal
         # ------------------------------
         layout = QVBoxLayout()
+        layout.setSpacing(20)
         layout.addLayout(layout_haut)
-        layout.addStretch()
         layout.addWidget(titre)
-        layout.addSpacing(20)
-        layout.addLayout(sujets_layout)
-        layout.addSpacing(20)
+        layout.addWidget(info_label)
+        layout.addWidget(self.scroll_area, 1)  # 1 = étirement
         layout.addLayout(layout_boutons)
-        layout.addStretch()
+        layout.addSpacing(20)
 
         self.setLayout(layout)
+        
+        # CONNECTER LES SIGNALS APRÈS QUE TOUTES LES MÉTHODES SONT DÉFINIES
+        self.connecter_signals()
 
-    # ------------------------------
-    # Fonctions
-    # ------------------------------
+    def connecter_signals(self):
+        """Connecte les signaux du menu aux méthodes"""
+        self.action_changer_mdp.triggered.connect(self.ouvrir_changement_mdp)
+        self.action_supprimer_compte.triggered.connect(self.ouvrir_suppression_compte)
+        self.action_deconnexion.triggered.connect(self.retour_connexion)
+
+    def charger_sujets(self):
+   
+        try:
+            # Vider le layout existant
+            while self.sujets_layout.count():
+                child = self.sujets_layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
+            
+            # Récupérer les sujets
+            try:
+                self.sujets = get_subjects()
+            except sqlite3.OperationalError as e:
+                if "no such table" in str(e):
+                    QMessageBox.warning(self, "Base de données", 
+                        "La base de données n'est pas encore initialisée.\n\n"
+                        "Veuillez contacter l'administrateur pour initialiser le système.")
+                    lbl_erreur = QLabel("⚠️ Système en cours d'initialisation\n"
+                                    "Veuillez réessayer dans quelques instants.")
+                    lbl_erreur.setFont(QFont("Arial", 16))
+                    lbl_erreur.setStyleSheet("color: yellow; padding: 40px; text-align: center;")
+                    lbl_erreur.setAlignment(Qt.AlignCenter)
+                    self.sujets_layout.addWidget(lbl_erreur)
+                    return
+                else:
+                    raise e
+            
+            self.checkbox_dict = {}
+            
+            if not self.sujets:
+                lbl_aucun = QLabel("Aucun sujet disponible pour le moment.\nL'administrateur ajoutera des sujets bientôt.")
+                lbl_aucun.setFont(QFont("Arial", 16))
+                lbl_aucun.setStyleSheet("color: white; padding: 40px; text-align: center;")
+                lbl_aucun.setAlignment(Qt.AlignCenter)
+                self.sujets_layout.addWidget(lbl_aucun)
+                return
+            
+            for sujet in self.sujets:
+                # get_subjects() retourne: (id, titre, description)
+                _id = sujet[0]
+                titre_sujet = sujet[1]
+                description = sujet[2] if len(sujet) > 2 else ""
+                
+                # Créer un frame pour chaque sujet
+                sujet_frame = QFrame()
+                sujet_frame.setStyleSheet("""
+                    QFrame {
+                        background-color: rgba(255, 255, 255, 0.15);
+                        border-radius: 12px;
+                        border: 2px solid rgba(255, 255, 255, 0.2);
+                    }
+                    QFrame:hover {
+                        background-color: rgba(255, 255, 255, 0.2);
+                        border: 2px solid rgba(255, 255, 255, 0.3);
+                    }
+                """)
+                
+                frame_layout = QVBoxLayout()
+                frame_layout.setSpacing(8)
+                frame_layout.setContentsMargins(15, 15, 15, 15)
+                
+                # Checkbox avec titre
+                cb = QCheckBox(titre_sujet)
+                cb.setFont(QFont("Arial", 16, QFont.Bold))
+                cb.setStyleSheet("color: white;")
+                self.checkbox_dict[_id] = cb
+                
+                # Description
+                if description:
+                    lbl_desc = QLabel(description)
+                    lbl_desc.setFont(QFont("Arial", 14))
+                    lbl_desc.setStyleSheet("color: #E0E0E0; margin-left: 25px;")
+                    lbl_desc.setWordWrap(True)
+                else:
+                    lbl_desc = QLabel("Aucune description fournie")
+                    lbl_desc.setFont(QFont("Arial", 12, QFont.Italic))
+                    lbl_desc.setStyleSheet("color: #AAAAAA; margin-left: 25px;")
+                    lbl_desc.setWordWrap(True)
+                
+                # Détails
+                lbl_details = QLabel(f"📌 ID: {_id}")
+                lbl_details.setFont(QFont("Arial", 12))
+                lbl_details.setStyleSheet("color: #B0B0B0; margin-left: 25px;")
+                
+                frame_layout.addWidget(cb)
+                frame_layout.addWidget(lbl_desc)
+                frame_layout.addWidget(lbl_details)
+                
+                sujet_frame.setLayout(frame_layout)
+                self.sujets_layout.addWidget(sujet_frame)
+            
+                # Ajouter un stretch à la fin
+                self.sujets_layout.addStretch()
+            
+        except Exception as e:
+            print(f"Erreur lors du chargement des sujets: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Erreur", f"Impossible de charger les sujets:\n\n{e}")
+    def afficher_resultats(self):
+        """Affiche les résultats (à implémenter)"""
+        QMessageBox.information(self, "Résultats", 
+            "Cette fonctionnalité sera disponible bientôt.\n\n"
+            "Vous pourrez voir ici les choix de tous les stagiaires "
+            "une fois que l'administrateur aura terminé l'attribution.")
+
     def ouvrir_changement_mdp(self):
         """Ouvre la fenêtre de changement de mot de passe"""
+        print("DEBUG: Ouverture fenêtre changement mdp")
         self.fenetre_changement_mdp = FenetrePageChangementMdp(self.login, self)
         self.fenetre_changement_mdp.show()
 
     def ouvrir_suppression_compte(self):
         """Ouvre la fenêtre de suppression de compte"""
+        print("DEBUG: Ouverture fenêtre suppression compte")
         self.fenetre_suppression = FenetreSuppressionCompte(self.login, self, self.page_connexion)
         self.fenetre_suppression.show()
 
     def valider_choix(self):
+        """Valide les choix de sujets"""
         sujets_choisis = [cb.text() for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
         if not sujets_choisis:
             QMessageBox.warning(self, "Erreur", "Veuillez sélectionner au moins un sujet.")
             return
 
-        QMessageBox.information(
-            self,
-            "Sujets choisis",
-            "Vous avez choisi :\n" + "\n".join(sujets_choisis) + " ✅"
-        )
-
-        try:
-            client = socket.socket()
-            client.connect((SERVER_IP, SERVER_PORT))
-            ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
-            client.send(f"CHOIX_SUJETS:{self.login}:{','.join(ids)}".encode())
-            client.close()
-        except Exception:
-            QMessageBox.critical(self, "Erreur", "Impossible d'envoyer les choix au serveur.")
+        # Afficher une boîte de dialogue de confirmation plus détaillée
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Confirmation des choix")
+        msg.setText(f"<h3>Vous avez sélectionné {len(sujets_choisis)} sujet(s)</h3>")
+        msg.setInformativeText("<b>Sujets choisis :</b><br>" + "<br>".join(f"• {sujet}" for sujet in sujets_choisis))
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.Yes)
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: #4682B4;
+            }
+            QLabel {
+                color: white;
+            }
+        """)
+        
+        if msg.exec_() == QMessageBox.Yes:
+            try:
+                client = socket.socket()
+                client.connect((SERVER_IP, SERVER_PORT))
+                ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+                client.send(f"CHOIX_SUJETS:{self.login}:{','.join(ids)}".encode())
+                reponse = client.recv(1024).decode()
+                client.close()
+                
+                if reponse == "CHOIX_ENREGISTRE":
+                    QMessageBox.information(self, "Succès", 
+                        "Vos choix ont été enregistrés avec succès ! ✅\n\n"
+                        "L'administrateur traitera votre demande.\n"
+                        "Vous serez notifié(e) une fois l'attribution terminée.")
+                else:
+                    QMessageBox.warning(self, "Erreur", 
+                        "Erreur lors de l'enregistrement de vos choix.\n"
+                        "Veuillez réessayer.")
+            except Exception as e:
+                QMessageBox.critical(self, "Erreur", 
+                    f"Impossible de contacter le serveur :\n{e}")
 
     def retour_connexion(self):
+        """Retour à la fenêtre de connexion"""
         self.close()
         self.page_connexion.show()
 

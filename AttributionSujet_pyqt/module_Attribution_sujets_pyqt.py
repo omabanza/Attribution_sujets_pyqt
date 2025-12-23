@@ -59,6 +59,13 @@ def init_db():
                 INSERT OR IGNORE INTO sujets (titre, description, capacite_max, date_limite)
                 VALUES (?, ?, ?, ?)
             """, (titre, desc, capacite, date_limite))
+        
+        print(f"✅ Base de données initialisée avec succès (tables: users, sujets, choix_utilisateurs)")
+
+# ============================
+# NOUVEAU : Initialiser la base de données au démarrage
+# ============================
+init_db()
 
 # ============================
 # FONCTIONS POUR LES SUJETS (ADMIN)
