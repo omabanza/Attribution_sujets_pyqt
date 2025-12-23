@@ -1,9 +1,13 @@
 import sys
+import os
 import socket
+import ast
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
 from module_Attribution_sujets_pyqt import get_subjects
+
+
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 55555
@@ -668,13 +672,16 @@ class FenetreSuppressionCompte(QWidget):
 
 
 # ============================
-# Fenêtre Choix de Sujets (Checkbox)
+# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE POUR RÉCUPÉRER LES SUJETS DEPUIS LE SERVEUR
 # ============================
 # ============================
-# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE
+# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE POUR RÉCUPÉRER LES SUJETS DEPUIS LE SERVEUR
 # ============================
 # ============================
-# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE
+# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE POUR RÉCUPÉRER LES SUJETS DEPUIS LE SERVEUR
+# ============================
+# ============================
+# Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE POUR RÉCUPÉRER LES SUJETS DEPUIS LE SERVEUR
 # ============================
 class FenetreChoixSujets(QWidget):
     def __init__(self, login, page_connexion):
@@ -683,6 +690,9 @@ class FenetreChoixSujets(QWidget):
         self.page_connexion = page_connexion
         self.fenetre_changement_mdp = None
         self.fenetre_suppression = None
+        self.sujets = []
+        self.checkbox_dict = {}
+        
         self.setWindowTitle(f"Choix de sujets - {login}")
         self.showMaximized()
         self.setMinimumSize(self.screen().size())
@@ -692,13 +702,11 @@ class FenetreChoixSujets(QWidget):
         palette.setColor(QPalette.Window, QColor(70, 130, 180))
         self.setPalette(palette)
 
-        fontTitre = QFont("Arial", 28, QFont.Bold)
-        fontSujet = QFont("Arial", 14)
-        fontDetail = QFont("Arial", 12)
-
         # ------------------------------
+        # 1. CRÉATION DE TOUS LES WIDGETS
+        # ------------------------------
+        
         # Haut : thème à gauche + login/icône/retour à droite
-        # ------------------------------
         lbl_theme = QLabel("AttributionSujet")
         lbl_theme.setFont(QFont("Arial", 18, QFont.Bold))
         lbl_theme.setStyleSheet("color:white;")
@@ -748,28 +756,50 @@ class FenetreChoixSujets(QWidget):
             }
         """)
         
-        # Actions du menu - NE PAS CONNECTER LES SIGNALS ICI
+        # Actions du menu
         self.action_changer_mdp = self.menu_login.addAction("🔄 Changer le mot de passe")
         self.action_supprimer_compte = self.menu_login.addAction("🗑️ Supprimer mon compte")
+        self.menu_login.addSeparator()
+        self.action_rafraichir = self.menu_login.addAction("🔄 Rafraîchir la liste")
         self.menu_login.addSeparator()
         self.action_deconnexion = self.menu_login.addAction("🚪 Déconnexion")
         
         # Assigner le menu au bouton
         self.btn_menu_login.setMenu(self.menu_login)
         
+        # Bouton rafraîchissement visible
+        self.btn_rafraichir = QPushButton("🔄")
+        self.btn_rafraichir.setFixedSize(40, 40)
+        self.btn_rafraichir.setFont(QFont("Arial", 16))
+        self.btn_rafraichir.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255, 255, 255, 0.15);
+                color: white;
+                border: 2px solid white;
+                border-radius: 20px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.3);
+                border: 2px solid #FFD700;
+            }
+            QPushButton:pressed {
+                background-color: rgba(255, 215, 0, 0.5);
+            }
+        """)
+        self.btn_rafraichir.setToolTip("Rafraîchir la liste des sujets")
+
         # Icône
         lbl_icone = QLabel()
-        # Vérifier si le fichier existe avant de charger
         try:
             lbl_icone.setPixmap(QPixmap("pv.png").scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         except:
-            # Si l'image n'existe pas, utiliser un texte
             lbl_icone.setText("👤")
             lbl_icone.setFont(QFont("Arial", 20))
 
         box_user = QHBoxLayout()
         box_user.addWidget(lbl_icone)
         box_user.addWidget(self.btn_menu_login)
+        box_user.addWidget(self.btn_rafraichir)
         box_user.setSpacing(10)
 
         btn_retour = QPushButton("Retour à la connexion")
@@ -784,17 +814,13 @@ class FenetreChoixSujets(QWidget):
         layout_haut.addSpacing(20)
         layout_haut.addWidget(btn_retour)
 
-        # ------------------------------
         # Titre centré
-        # ------------------------------
         titre = QLabel("📋 Sujets disponibles pour votre choix")
-        titre.setFont(fontTitre)
+        titre.setFont(QFont("Arial", 28, QFont.Bold))
         titre.setStyleSheet("color:white;")
         titre.setAlignment(Qt.AlignCenter)
 
-        # ------------------------------
         # Frame pour les sujets avec défilement
-        # ------------------------------
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setStyleSheet("""
@@ -823,22 +849,15 @@ class FenetreChoixSujets(QWidget):
         self.sujets_layout.setSpacing(15)
         self.sujets_layout.setContentsMargins(20, 20, 20, 20)
         
-        # Charger les sujets
-        self.charger_sujets()
-        
         self.scroll_area.setWidget(self.sujets_widget)
 
-        # ------------------------------
         # Informations en bas
-        # ------------------------------
         info_label = QLabel("ℹ️ Sélectionnez les sujets qui vous intéressent (vous pouvez en choisir plusieurs)")
-        info_label.setFont(fontDetail)
+        info_label.setFont(QFont("Arial", 12))
         info_label.setStyleSheet("color: #FFD700; background: rgba(0, 0, 0, 0.3); padding: 10px; border-radius: 8px;")
         info_label.setAlignment(Qt.AlignCenter)
 
-        # ------------------------------
         # Boutons Valider / Résultats
-        # ------------------------------
         btn_valider = QPushButton("✅ Valider mes choix")
         btn_valider.setFont(QFont("Arial", 16))
         btn_valider.setStyleSheet("""
@@ -874,7 +893,6 @@ class FenetreChoixSujets(QWidget):
                 background: #1976D2;
             }
         """)
-        # Pour l'instant, ne fait rien - à implémenter plus tard
         btn_resultat.clicked.connect(self.afficher_resultats)
 
         layout_boutons = QHBoxLayout()
@@ -882,9 +900,17 @@ class FenetreChoixSujets(QWidget):
         layout_boutons.setSpacing(30)
         layout_boutons.addWidget(btn_valider)
         layout_boutons.addWidget(btn_resultat)
+        
+        # ------------------------------
+        # 2. CRÉATION DE status_label - MAINTENANT !
+        # ------------------------------
+        self.status_label = QLabel("Prêt - Connecté au serveur")
+        self.status_label.setFont(QFont("Arial", 10))
+        self.status_label.setStyleSheet("color: #FFD700; background: rgba(0, 0, 0, 0.3); padding: 8px; border-radius: 5px;")
+        self.status_label.setAlignment(Qt.AlignCenter)
 
         # ------------------------------
-        # Layout principal
+        # 3. CONSTRUCTION DU LAYOUT PRINCIPAL
         # ------------------------------
         layout = QVBoxLayout()
         layout.setSpacing(20)
@@ -893,21 +919,67 @@ class FenetreChoixSujets(QWidget):
         layout.addWidget(info_label)
         layout.addWidget(self.scroll_area, 1)  # 1 = étirement
         layout.addLayout(layout_boutons)
-        layout.addSpacing(20)
+        layout.addWidget(self.status_label)
+        layout.addSpacing(10)
 
         self.setLayout(layout)
         
-        # CONNECTER LES SIGNALS APRÈS QUE TOUTES LES MÉTHODES SONT DÉFINIES
+        # ------------------------------
+        # 4. MAINTENANT, charger les sujets (status_label existe)
+        # ------------------------------
+        self.charger_sujets()
+        
+        # ------------------------------
+        # 5. Connecter les signals
+        # ------------------------------
         self.connecter_signals()
 
+    def get_sujets_from_server(self):
+        """Récupère les sujets actifs depuis le serveur TCP"""
+        try:
+            print("DEBUG: Récupération des sujets depuis le serveur...")
+            client = socket.socket()
+            client.settimeout(5)  # Timeout de 5 secondes
+            client.connect((SERVER_IP, SERVER_PORT))
+            
+            client.send("GET_ACTIVE_SUBJECTS".encode())
+            reponse = client.recv(4096).decode()
+            client.close()
+            
+            print(f"DEBUG: Réponse serveur: {reponse[:100]}...")
+            
+            if reponse.startswith("ACTIVE_SUBJECTS:"):
+                sujets_str = reponse[16:]  # Enlever "ACTIVE_SUBJECTS:"
+                sujets = ast.literal_eval(sujets_str)
+                return sujets
+            else:
+                print(f"DEBUG: Réponse inattendue: {reponse}")
+                # Fallback : utiliser la base locale
+                return get_subjects()
+                
+        except socket.timeout:
+            print("DEBUG: ❌ Timeout - Serveur ne répond pas")
+            self.status_label.setText("❌ Serveur ne répond pas - Utilisation de la liste locale")
+            return get_subjects()
+        except ConnectionRefusedError:
+            print("DEBUG: ❌ Connexion refusée")
+            self.status_label.setText("❌ Serveur non disponible - Utilisation de la liste locale")
+            return get_subjects()
+        except Exception as e:
+            print(f"DEBUG: ❌ Exception: {e}")
+            self.status_label.setText(f"❌ Erreur: {str(e)[:50]}...")
+            return get_subjects()
+
     def connecter_signals(self):
-        """Connecte les signaux du menu aux méthodes"""
+        """Connecte les signals du menu aux méthodes"""
         self.action_changer_mdp.triggered.connect(self.ouvrir_changement_mdp)
         self.action_supprimer_compte.triggered.connect(self.ouvrir_suppression_compte)
+        self.action_rafraichir.triggered.connect(self.charger_sujets)
         self.action_deconnexion.triggered.connect(self.retour_connexion)
+        self.btn_rafraichir.clicked.connect(self.charger_sujets)
 
     def charger_sujets(self):
-   
+        """Charge et affiche tous les sujets disponibles depuis le serveur"""
         try:
             # Vider le layout existant
             while self.sujets_layout.count():
@@ -915,24 +987,11 @@ class FenetreChoixSujets(QWidget):
                 if child.widget():
                     child.widget().deleteLater()
             
-            # Récupérer les sujets
-            try:
-                self.sujets = get_subjects()
-            except sqlite3.OperationalError as e:
-                if "no such table" in str(e):
-                    QMessageBox.warning(self, "Base de données", 
-                        "La base de données n'est pas encore initialisée.\n\n"
-                        "Veuillez contacter l'administrateur pour initialiser le système.")
-                    lbl_erreur = QLabel("⚠️ Système en cours d'initialisation\n"
-                                    "Veuillez réessayer dans quelques instants.")
-                    lbl_erreur.setFont(QFont("Arial", 16))
-                    lbl_erreur.setStyleSheet("color: yellow; padding: 40px; text-align: center;")
-                    lbl_erreur.setAlignment(Qt.AlignCenter)
-                    self.sujets_layout.addWidget(lbl_erreur)
-                    return
-                else:
-                    raise e
+            # Récupérer les sujets DEPUIS LE SERVEUR TCP
+            self.status_label.setText("🔄 Récupération des sujets en cours...")
+            QApplication.processEvents()  # Mettre à jour l'interface
             
+            self.sujets = self.get_sujets_from_server()
             self.checkbox_dict = {}
             
             if not self.sujets:
@@ -941,10 +1000,10 @@ class FenetreChoixSujets(QWidget):
                 lbl_aucun.setStyleSheet("color: white; padding: 40px; text-align: center;")
                 lbl_aucun.setAlignment(Qt.AlignCenter)
                 self.sujets_layout.addWidget(lbl_aucun)
+                self.status_label.setText("✅ Aucun sujet disponible")
                 return
             
             for sujet in self.sujets:
-                # get_subjects() retourne: (id, titre, description)
                 _id = sujet[0]
                 titre_sujet = sujet[1]
                 description = sujet[2] if len(sujet) > 2 else ""
@@ -973,7 +1032,7 @@ class FenetreChoixSujets(QWidget):
                 cb.setStyleSheet("color: white;")
                 self.checkbox_dict[_id] = cb
                 
-                # Description
+                # Description - CORRECTION ICI
                 if description:
                     lbl_desc = QLabel(description)
                     lbl_desc.setFont(QFont("Arial", 14))
@@ -981,8 +1040,9 @@ class FenetreChoixSujets(QWidget):
                     lbl_desc.setWordWrap(True)
                 else:
                     lbl_desc = QLabel("Aucune description fournie")
-                    lbl_desc.setFont(QFont("Arial", 12, QFont.Italic))
-                    lbl_desc.setStyleSheet("color: #AAAAAA; margin-left: 25px;")
+                    # CORRECTION : Pas de QFont.Italic, utiliser le style CSS
+                    lbl_desc.setStyleSheet("color: #AAAAAA; margin-left: 25px; font-style: italic;")
+                    lbl_desc.setFont(QFont("Arial", 12))
                     lbl_desc.setWordWrap(True)
                 
                 # Détails
@@ -997,14 +1057,96 @@ class FenetreChoixSujets(QWidget):
                 sujet_frame.setLayout(frame_layout)
                 self.sujets_layout.addWidget(sujet_frame)
             
-                # Ajouter un stretch à la fin
-                self.sujets_layout.addStretch()
+            # Ajouter un stretch à la fin
+            self.sujets_layout.addStretch()
+            
+            # Mettre à jour la barre de statut
+            self.status_label.setText(f"✅ {len(self.sujets)} sujet(s) disponible(s) - Prêt")
             
         except Exception as e:
             print(f"Erreur lors du chargement des sujets: {e}")
-            import traceback
-            traceback.print_exc()
-            QMessageBox.critical(self, "Erreur", f"Impossible de charger les sujets:\n\n{e}")
+            # Maintenant status_label existe toujours
+            self.status_label.setText(f"❌ Erreur lors du chargement: {str(e)[:50]}")
+            QMessageBox.critical(self, "Erreur", f"Impossible de charger les sujets: {e}")
+    def valider_choix(self):
+        """Valide les choix de sujets"""
+        # Vérifier si des sujets ont été sélectionnés
+        sujets_choisis = [cb for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+        
+        if not sujets_choisis:
+            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner au moins un sujet.")
+            return
+
+        # Créer une liste des titres des sujets choisis
+        titres_choisis = [cb.text() for cb in sujets_choisis]
+        
+        # Afficher une boîte de dialogue de confirmation
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Confirmation des choix")
+        msg.setText(f"<h3>Vous avez sélectionné {len(sujets_choisis)} sujet(s)</h3>")
+        msg.setInformativeText("<b>Sujets choisis :</b><br>" + "<br>".join(f"• {titre}" for titre in titres_choisis))
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.Yes)
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: #4682B4;
+            }
+            QLabel {
+                color: white;
+            }
+        """)
+        
+        if msg.exec_() == QMessageBox.Yes:
+            try:
+                self.status_label.setText("🔄 Envoi des choix au serveur...")
+                QApplication.processEvents()  # Mettre à jour l'interface
+                
+                client = socket.socket()
+                client.settimeout(5)
+                client.connect((SERVER_IP, SERVER_PORT))
+                
+                # Récupérer les IDs des sujets choisis
+                ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+                message = f"CHOIX_SUJETS:{self.login}:{','.join(ids)}"
+                
+                print(f"DEBUG: Envoi des choix: {message}")
+                client.send(message.encode())
+                
+                reponse = client.recv(1024).decode()
+                client.close()
+                
+                print(f"DEBUG: Réponse serveur: {reponse}")
+                
+                if reponse == "CHOIX_ENREGISTRE":
+                    self.status_label.setText("✅ Choix enregistrés avec succès")
+                    QMessageBox.information(self, "Succès", 
+                        "Vos choix ont été enregistrés avec succès ! ✅\n\n"
+                        "L'administrateur traitera votre demande.\n"
+                        "Vous serez notifié(e) une fois l'attribution terminée.")
+                else:
+                    self.status_label.setText("❌ Échec de l'enregistrement")
+                    QMessageBox.warning(self, "Erreur", 
+                        f"Erreur lors de l'enregistrement de vos choix.\n"
+                        f"Réponse serveur: {reponse}")
+                        
+            except socket.timeout:
+                self.status_label.setText("❌ Timeout - Serveur ne répond pas")
+                QMessageBox.critical(self, "Erreur", 
+                    "Le serveur ne répond pas (timeout).\n"
+                    "Vérifiez que le serveur est démarré.")
+            except ConnectionRefusedError:
+                self.status_label.setText("❌ Serveur non disponible")
+                QMessageBox.critical(self, "Erreur", 
+                    "Impossible de se connecter au serveur.\n"
+                    "Assurez-vous que le serveur est démarré:\n"
+                    "1. Ouvrez un terminal\n"
+                    "2. Exécutez: python serveur_tcp_sqlite.py\n"
+                    "3. Attendez le message 'Serveur en écoute'")
+            except Exception as e:
+                self.status_label.setText(f"❌ Erreur: {str(e)[:30]}")
+                QMessageBox.critical(self, "Erreur", 
+                    f"Erreur de connexion au serveur:\n{str(e)}")
+
     def afficher_resultats(self):
         """Affiche les résultats (à implémenter)"""
         QMessageBox.information(self, "Résultats", 
@@ -1024,56 +1166,11 @@ class FenetreChoixSujets(QWidget):
         self.fenetre_suppression = FenetreSuppressionCompte(self.login, self, self.page_connexion)
         self.fenetre_suppression.show()
 
-    def valider_choix(self):
-        """Valide les choix de sujets"""
-        sujets_choisis = [cb.text() for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
-        if not sujets_choisis:
-            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner au moins un sujet.")
-            return
-
-        # Afficher une boîte de dialogue de confirmation plus détaillée
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Confirmation des choix")
-        msg.setText(f"<h3>Vous avez sélectionné {len(sujets_choisis)} sujet(s)</h3>")
-        msg.setInformativeText("<b>Sujets choisis :</b><br>" + "<br>".join(f"• {sujet}" for sujet in sujets_choisis))
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setDefaultButton(QMessageBox.Yes)
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #4682B4;
-            }
-            QLabel {
-                color: white;
-            }
-        """)
-        
-        if msg.exec_() == QMessageBox.Yes:
-            try:
-                client = socket.socket()
-                client.connect((SERVER_IP, SERVER_PORT))
-                ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
-                client.send(f"CHOIX_SUJETS:{self.login}:{','.join(ids)}".encode())
-                reponse = client.recv(1024).decode()
-                client.close()
-                
-                if reponse == "CHOIX_ENREGISTRE":
-                    QMessageBox.information(self, "Succès", 
-                        "Vos choix ont été enregistrés avec succès ! ✅\n\n"
-                        "L'administrateur traitera votre demande.\n"
-                        "Vous serez notifié(e) une fois l'attribution terminée.")
-                else:
-                    QMessageBox.warning(self, "Erreur", 
-                        "Erreur lors de l'enregistrement de vos choix.\n"
-                        "Veuillez réessayer.")
-            except Exception as e:
-                QMessageBox.critical(self, "Erreur", 
-                    f"Impossible de contacter le serveur :\n{e}")
-
+    
     def retour_connexion(self):
         """Retour à la fenêtre de connexion"""
         self.close()
         self.page_connexion.show()
-
 
 # ============================
 # Lancement de l'application

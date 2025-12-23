@@ -13,6 +13,8 @@ ADMIN_PASSWORD = "admin123"
 # ============================
 # Gestion des clients
 # ============================
+
+
 def gerer_client(conn, addr):
     print(f"\n=== NOUVELLE CONNEXION de {addr} ===")
     try:
@@ -125,6 +127,23 @@ def gerer_client(conn, addr):
                     continue
                 
                 # ============================
+                # NOUVELLE REQUÊTE POUR STAGIAIRES
+                # ============================
+                
+                # Obtenir les sujets actifs pour les stagiaires
+                elif message == "GET_ACTIVE_SUBJECTS":
+                    print(">>> Requête: GET_ACTIVE_SUBJECTS (stagiaire)")
+                    try:
+                        from module_Attribution_sujets_pyqt import get_subjects
+                        sujets = get_subjects()  # Déjà filtrés sur actif=1
+                        response = "ACTIVE_SUBJECTS:" + str(sujets)
+                        conn.sendall(response.encode("utf-8"))
+                        print(f"<<< Réponse envoyée: {len(sujets)} sujets actifs")
+                    except Exception as e:
+                        conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
+                    continue
+                
+                # ============================
                 # REQUÊTES EXISTANTES
                 # ============================
                 
@@ -196,7 +215,7 @@ def gerer_client(conn, addr):
                 # ============================
                 elif ":" in message and not message.startswith(("REGISTER:", "CHANGE_PASSWORD:", "DELETE_ACCOUNT:", "CHOIX_SUJETS:", 
                                                                 "GET_ALL_SUBJECTS", "GET_ALL_USERS", "ADD_SUBJECT:", 
-                                                                "UPDATE_SUBJECT:", "DELETE_SUBJECT:")):
+                                                                "UPDATE_SUBJECT:", "DELETE_SUBJECT:", "GET_ACTIVE_SUBJECTS")):
                     login, mdp = message.split(":", 1)
                     
                     print(f">>> TENTATIVE DE CONNEXION: login='{login}', mdp='{mdp}'")
