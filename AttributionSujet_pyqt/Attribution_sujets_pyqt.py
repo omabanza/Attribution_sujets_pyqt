@@ -1029,14 +1029,14 @@ class FenetreChoixSujets(QWidget):
                 # Checkbox avec titre
                 cb = QCheckBox(titre_sujet)
                 cb.setFont(QFont("Arial", 16, QFont.Bold))
-                cb.setStyleSheet("color: white;")
+                cb.setStyleSheet("color: #81C784;")
                 self.checkbox_dict[_id] = cb
                 
                 # Description - CORRECTION ICI
                 if description:
                     lbl_desc = QLabel(description)
                     lbl_desc.setFont(QFont("Arial", 14))
-                    lbl_desc.setStyleSheet("color: #E0E0E0; margin-left: 25px;")
+                    lbl_desc.setStyleSheet("color: #81C784; margin-left: 25px;")
                     lbl_desc.setWordWrap(True)
                 else:
                     lbl_desc = QLabel("Aucune description fournie")
@@ -1048,7 +1048,7 @@ class FenetreChoixSujets(QWidget):
                 # Détails
                 lbl_details = QLabel(f"📌 ID: {_id}")
                 lbl_details.setFont(QFont("Arial", 12))
-                lbl_details.setStyleSheet("color: #B0B0B0; margin-left: 25px;")
+                lbl_details.setStyleSheet("color: #4DD0E1; margin-left: 25px;")
                 
                 frame_layout.addWidget(cb)
                 frame_layout.addWidget(lbl_desc)
