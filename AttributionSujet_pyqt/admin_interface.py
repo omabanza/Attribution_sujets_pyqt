@@ -482,17 +482,20 @@ class AdminPanel(QMainWindow):
                 try:
                     utilisateurs = ast.literal_eval(users_str)
                     
+                    # DEBUG: Afficher la structure reçue
+                    print(f"DEBUG Admin: Structure reçue - Premier élément: {utilisateurs[0] if utilisateurs else 'vide'}")
+                    print(f"DEBUG Admin: Nombre d'éléments par utilisateur: {len(utilisateurs[0]) if utilisateurs else 0}")
+                    
                     self.table_utilisateurs.setRowCount(len(utilisateurs))
                     for row, user in enumerate(utilisateurs):
-                        # Ajuster pour 5 colonnes au lieu de 6
-                        # user contient: [id, nom, prenom, login, date_inscription, nb_choix]
-                        # Nous sautons la date_inscription (index 4)
+                        # NOUVELLE STRUCTURE: user contient: [id, nom, prenom, login, nb_choix]
+                        # 5 colonnes au lieu de 6 (sans date_inscription)
                         user_data = [
-                            user[0],  # ID
-                            user[1],  # Nom
-                            user[2],  # Prénom
-                            user[3],  # Login
-                            user[5] if len(user) > 5 else "0"  # Nb Choix (sauter date_inscription)
+                            user[0] if len(user) > 0 else "",  # ID
+                            user[1] if len(user) > 1 else "",  # Nom
+                            user[2] if len(user) > 2 else "",  # Prénom
+                            user[3] if len(user) > 3 else "",  # Login
+                            user[4] if len(user) > 4 else "0"  # Nb Choix (maintenant à l'index 4)
                         ]
                         
                         for col in range(5):  # 5 colonnes maintenant
@@ -500,22 +503,35 @@ class AdminPanel(QMainWindow):
                             item = QTableWidgetItem(str(valeur))
                             
                             # Colorer la colonne "Nb Choix" (maintenant à l'index 4)
-                            if col == 4:  # Colonne Nb Choix
+                            if col == 4:  # Colonne Nb Choix (5ème colonne)
                                 try:
                                     nb = int(valeur)
                                     if nb == 0:
                                         item.setForeground(QColor(255, 0, 0))
-                                    elif nb >= 3:
+                                        item.setText(f"{nb} (Aucun choix)")
+                                    elif nb == 1:
+                                        item.setForeground(QColor(255, 140, 0))
+                                        item.setText(f"{nb} choix")
+                                    elif nb >= 2:
                                         item.setForeground(QColor(0, 150, 0))
+                                        item.setText(f"{nb} choix")
+                                    else:
+                                        item.setText(str(nb))
                                 except:
-                                    pass
+                                    item.setText("0 (Erreur)")
+                                    item.setForeground(QColor(255, 0, 0))
                             
                             self.table_utilisateurs.setItem(row, col, item)
                     
                     self.table_utilisateurs.resizeColumnsToContents()
                     
+                    # DEBUG: Message de confirmation
+                    print(f"DEBUG Admin: {len(utilisateurs)} utilisateurs chargés")
+                    
                 except Exception as e:
                     QMessageBox.critical(self, "Erreur", f"Erreur lors du traitement des données: {e}")
+                    import traceback
+                    traceback.print_exc()
             else:
                 QMessageBox.warning(self, "Erreur", f"Réponse inattendue du serveur: {reponse}")
                 
@@ -776,7 +792,17 @@ class AdminPanel(QMainWindow):
                 item = self.table_utilisateurs.item(row, 4)  # Index 4 pour "Nb Choix" (5ème colonne)
                 if item:
                     try:
-                        total_choix += int(item.text())
+                        # Extraire le nombre du texte (ex: "3 choix" -> 3)
+                        texte = item.text()
+                        if "(" in texte:
+                            # Format: "0 (Aucun choix)"
+                            nb = int(texte.split("(")[0].strip())
+                        elif "choix" in texte:
+                            # Format: "3 choix"
+                            nb = int(texte.split()[0])
+                        else:
+                            nb = int(texte)
+                        total_choix += nb
                     except:
                         pass
             
@@ -864,6 +890,7 @@ class AdminPanel(QMainWindow):
             "</ul>"
             "<p>© 2024 - Tous droits réservés</p>")
 
+
 # ============================
 # Lancement direct (pour test)
 # ============================
@@ -879,3 +906,12 @@ if __name__ == "__main__":
     palette.setColor(QPalette.AlternateBase, QColor(40, 40, 56))
     palette.setColor(QPalette.Text, Qt.white)
     palette.setColor(QPalette.Button, QColor(50, 50, 70))
+    palette.setColor(QPalette.ButtonText, Qt.white)
+    palette.setColor(QPalette.Highlight, QColor(255, 215, 0))
+    palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+    
+    app.setPalette(palette)
+    
+    fenetre = AdminPanel()
+    fenetre.show()
+    sys.exit(app.exec_())

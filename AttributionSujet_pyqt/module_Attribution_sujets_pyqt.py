@@ -132,13 +132,16 @@ def get_sujet_par_id(sujet_id):
         return c.fetchone()
 
 def get_tous_utilisateurs():
-    """Récupère tous les utilisateurs"""
+    """Récupère tous les utilisateurs avec leur nombre de choix"""
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("""
-            SELECT id, nom, prenom, login
-            FROM users 
-            ORDER BY nom, prenom
+            SELECT u.id, u.nom, u.prenom, u.login,
+                   COUNT(c.id) as nb_choix
+            FROM users u
+            LEFT JOIN choix_utilisateurs c ON u.id = c.user_id
+            GROUP BY u.id
+            ORDER BY u.nom, u.prenom
         """)
         return c.fetchall()
 
