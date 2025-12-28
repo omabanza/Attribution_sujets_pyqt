@@ -2,18 +2,19 @@ import socket
 import threading
 import signal
 import sys
+import sqlite3
 from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants, changer_mot_de_passe, supprimer_compte
-
+from module_Attribution_sujets_pyqt import get_resultats_par_utilisateur, get_statistiques_avancees
 # ============================
 # Configuration administrateur
 # ============================
 ADMIN_LOGIN = "admin"
 ADMIN_PASSWORD = "admin123"
+DB_PATH = "data/base.sqlite"  # Ajout du chemin de la base de données
 
 # ============================
 # Gestion des clients
 # ============================
-
 
 def gerer_client(conn, addr):
     print(f"\n=== NOUVELLE CONNEXION de {addr} ===")
@@ -209,13 +210,85 @@ def gerer_client(conn, addr):
                     except Exception as e:
                         conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
                     continue
+                
+                # ============================
+                # NOUVELLES REQUÊTES POUR L'ALGORITHME D'ATTRIBUTION
+                # ============================
+                
+                # Obtenir les résultats pour un stagiaire (MODIFIÉ)
+                elif message.startswith("GET_RESULTS:"):
+                    print(">>> Requête: GET_RESULTS")
+                    try:
+                        parts = message.split(":")
+                        if len(parts) < 2:
+                            conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
+                            continue
+                            
+                        login = parts[1]
+                        print(f"   Recherche des résultats pour: {login}")
+                        
+                        # Utiliser la fonction du module
+                        results = get_resultats_par_utilisateur(login)
+                        
+                        # Vérifier si des résultats existent
+                        if not results['attributions'] and not results['attente']:
+                            print("   Aucun résultat disponible")
+                            conn.sendall("NO_RESULTS".encode("utf-8"))
+                        else:
+                            response = "RESULTS:" + str(results)
+                            conn.sendall(response.encode("utf-8"))
+                            print(f"<<< Résultats envoyés: {len(results['attributions'])} attributions, {len(results['attente'])} en attente")
+                            
+                    except Exception as e:
+                        print(f"   Erreur GET_RESULTS: {e}")
+                        conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
+                    continue
+                
+                # Lancer l'algorithme d'attribution (SECTION CORRIGÉE)
+                elif message == "RUN_ATTRIBUTION":
+                    print(">>> Requête: RUN_ATTRIBUTION")
+                    try:
+                        from Algorithme_attribution import lancer_attribution
+                        # Récupérer le résultat qui est maintenant toujours un tuple
+                        success, sujets_dict, utilisateurs_dict = lancer_attribution()
+                        
+                        if success:
+                            conn.sendall("ATTRIBUTION_DONE".encode("utf-8"))
+                            print("<<< Attribution effectuée avec succès")
+                        else:
+                            # Si sujets_dict est None, c'est que la date limite n'est pas passée
+                            if sujets_dict is None and utilisateurs_dict is None:
+                                conn.sendall("DATE_LIMITE_NON_ATTEINTE".encode("utf-8"))  # CORRECTION ICI
+                                print("<<< Date limite non atteinte")
+                            else:
+                                conn.sendall("ATTRIBUTION_FAILED".encode("utf-8"))
+                                print("<<< Échec de l'attribution")
+                    except Exception as e:
+                        error_msg = f"ERROR:Erreur lors de l'attribution : {str(e)}"
+                        conn.sendall(error_msg.encode("utf-8"))
+                        print(f"<<< Erreur: {e}")
+                    continue
+                
+                # Obtenir les statistiques avancées (MODIFIÉ)
+                elif message == "GET_ADVANCED_STATS":
+                    print(">>> Requête: GET_ADVANCED_STATS")
+                    try:
+                        stats = get_statistiques_avancees()
+                        response = "ADVANCED_STATS:" + str(stats)
+                        conn.sendall(response.encode("utf-8"))
+                        print("<<< Statistiques avancées envoyées")
+                    except Exception as e:
+                        print(f"   Erreur GET_ADVANCED_STATS: {e}")
+                        conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
+                    continue
                     
                 # ============================
                 # CONNEXION SIMPLE (login:mdp)
                 # ============================
                 elif ":" in message and not message.startswith(("REGISTER:", "CHANGE_PASSWORD:", "DELETE_ACCOUNT:", "CHOIX_SUJETS:", 
                                                                 "GET_ALL_SUBJECTS", "GET_ALL_USERS", "ADD_SUBJECT:", 
-                                                                "UPDATE_SUBJECT:", "DELETE_SUBJECT:", "GET_ACTIVE_SUBJECTS")):
+                                                                "UPDATE_SUBJECT:", "DELETE_SUBJECT:", "GET_ACTIVE_SUBJECTS",
+                                                                "RUN_ATTRIBUTION", "GET_RESULTS:", "GET_ADVANCED_STATS")):
                     login, mdp = message.split(":", 1)
                     
                     print(f">>> TENTATIVE DE CONNEXION: login='{login}', mdp='{mdp}'")
@@ -256,6 +329,157 @@ def gerer_client(conn, addr):
             pass
 
 # ============================
+# NOUVELLES FONCTIONS POUR L'ATTRIBUTION
+# ============================
+
+def get_results_for_user(login):
+    """Récupère les résultats d'un utilisateur"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Récupérer l'ID utilisateur
+    cursor.execute("SELECT id FROM users WHERE login = ?", (login,))
+    user_row = cursor.fetchone()
+    
+    if not user_row:
+        return {'attributions': [], 'attente': [], 'statistiques': {}}
+    
+    user_id = user_row[0]
+    
+    # Sujets attribués
+    cursor.execute("""
+        SELECT 
+            s.titre,
+            s.description,
+            r.ordre_preference,
+            r.statut,
+            r.date_attribution
+        FROM resultats_attribution r
+        JOIN sujets s ON r.sujet_id = s.id
+        WHERE r.user_id = ? AND r.statut = 'attribue'
+        ORDER BY r.ordre_preference
+    """, (user_id,))
+    attributions = cursor.fetchall()
+    
+    # Sujets en attente
+    cursor.execute("""
+        SELECT 
+            s.titre,
+            s.description,
+            r.ordre_preference,
+            r.position_liste_attente,
+            s.capacite_max
+        FROM resultats_attribution r
+        JOIN sujets s ON r.sujet_id = s.id
+        WHERE r.user_id = ? AND r.statut = 'attente'
+        ORDER BY r.position_liste_attente
+    """, (user_id,))
+    attente = cursor.fetchall()
+    
+    # Statistiques personnelles
+    cursor.execute("""
+        SELECT 
+            COUNT(*) as nb_total,
+            SUM(CASE WHEN statut = 'attribue' THEN 1 ELSE 0 END) as nb_attribues,
+            SUM(CASE WHEN statut = 'attente' THEN 1 ELSE 0 END) as nb_en_attente,
+            MIN(CASE WHEN statut = 'attribue' THEN ordre_preference END) as meilleur_choix,
+            CASE 
+                WHEN SUM(CASE WHEN statut = 'attribue' AND ordre_preference = 1 THEN 1 ELSE 0 END) > 0 
+                THEN 1 ELSE 0 
+            END as premier_choix_obtenu
+        FROM resultats_attribution
+        WHERE user_id = ?
+    """, (user_id,))
+    stats_row = cursor.fetchone()
+    
+    stats = {
+        'nb_choix_total': stats_row['nb_total'] if stats_row else 0,
+        'nb_attribues': stats_row['nb_attribues'] if stats_row else 0,
+        'nb_en_attente': stats_row['nb_en_attente'] if stats_row else 0,
+        'taux_reussite': f"{stats_row['nb_attribues'] / stats_row['nb_total'] * 100:.1f}%" if stats_row and stats_row['nb_total'] > 0 else "0%",
+        'meilleur_choix': stats_row['meilleur_choix'] if stats_row else "N/A",
+        'premier_choix_obtenu': bool(stats_row['premier_choix_obtenu']) if stats_row else False,
+        'position_moyenne': "N/A"  # À calculer si besoin
+    }
+    
+    conn.close()
+    
+    return {
+        'attributions': [list(row) for row in attributions],
+        'attente': [list(row) for row in attente],
+        'statistiques': stats
+    }
+
+def get_advanced_stats():
+    """Récupère les statistiques avancées"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Sujets les plus populaires
+    cursor.execute("""
+        SELECT 
+            s.titre,
+            COUNT(c.id) as nb_choix
+        FROM sujets s
+        LEFT JOIN choix_utilisateurs c ON s.id = c.sujet_id
+        WHERE s.actif = 1
+        GROUP BY s.id
+        ORDER BY nb_choix DESC
+        LIMIT 3
+    """)
+    sujets_populaires = cursor.fetchall()
+    
+    # Sujets les moins demandés
+    cursor.execute("""
+        SELECT 
+            s.titre,
+            COUNT(c.id) as nb_choix
+        FROM sujets s
+        LEFT JOIN choix_utilisateurs c ON s.id = c.sujet_id
+        WHERE s.actif = 1
+        GROUP BY s.id
+        ORDER BY nb_choix ASC
+        LIMIT 3
+    """)
+    sujets_moins_demandes = cursor.fetchall()
+    
+    # Moyenne de choix
+    cursor.execute("""
+        SELECT AVG(nb_choix) 
+        FROM (
+            SELECT COUNT(*) as nb_choix
+            FROM choix_utilisateurs
+            GROUP BY user_id
+        )
+    """)
+    moyenne_choix_result = cursor.fetchone()
+    moyenne_choix = moyenne_choix_result[0] if moyenne_choix_result and moyenne_choix_result[0] else 0
+    
+    # Taux de satisfaction (1er choix)
+    cursor.execute("""
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN ordre_preference = 1 AND statut = 'attribue' THEN 1 ELSE 0 END) as premier_choix
+        FROM resultats_attribution
+    """)
+    taux_row = cursor.fetchone()
+    if taux_row and taux_row['total'] > 0:
+        taux_satisfaction = f"{taux_row['premier_choix'] / taux_row['total'] * 100:.1f}%"
+    else:
+        taux_satisfaction = "0%"
+    
+    conn.close()
+    
+    return {
+        'sujets_populaires': ', '.join([s[0] for s in sujets_populaires]),
+        'sujets_moins_demandes': ', '.join([s[0] for s in sujets_moins_demandes]),
+        'moyenne_choix': round(moyenne_choix, 2),
+        'taux_satisfaction': taux_satisfaction
+    }
+
+# ============================
 # Fonction principale
 # ============================
 def main():
@@ -287,7 +511,7 @@ def main():
     serveur.listen(5)
     print(f"✅ Serveur en écoute sur {host}:{port}")
     print(f"🔑 Identifiants administrateur : {ADMIN_LOGIN} / {ADMIN_PASSWORD}")
-    print(f"📁 Base de données : data/base.sqlite")
+    print(f"📁 Base de données : {DB_PATH}")
     print("=" * 50)
 
     try:

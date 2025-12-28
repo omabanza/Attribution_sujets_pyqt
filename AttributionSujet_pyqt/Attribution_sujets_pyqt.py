@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
 from module_Attribution_sujets_pyqt import get_subjects
+from resultats_interface import ResultatsInterface
 
 
 
@@ -1148,11 +1149,26 @@ class FenetreChoixSujets(QWidget):
                     f"Erreur de connexion au serveur:\n{str(e)}")
 
     def afficher_resultats(self):
-        """Affiche les résultats (à implémenter)"""
-        QMessageBox.information(self, "Résultats", 
-            "Cette fonctionnalité sera disponible bientôt.\n\n"
-            "Vous pourrez voir ici les choix de tous les stagiaires "
-            "une fois que l'administrateur aura terminé l'attribution.")
+        """Ouvre la fenêtre des résultats"""
+        print("DEBUG: Ouverture fenêtre résultats")
+        try:
+            # Cacher la fenêtre actuelle temporairement
+            self.hide()
+            
+            # Créer et afficher la fenêtre des résultats
+            self.fenetre_resultats = ResultatsInterface(self.login, self)
+            self.fenetre_resultats.show()
+            
+        except ImportError as e:
+            QMessageBox.critical(self, "Erreur", 
+                f"Module résultats non disponible:\n{e}\n\n"
+                f"Assurez-vous que le fichier resultats_interface.py existe dans le même dossier.")
+            self.show()  # Re-afficher la fenêtre actuelle
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Impossible d'afficher les résultats: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show()  # Re-afficher la fenêtre actuelle
 
     def ouvrir_changement_mdp(self):
         """Ouvre la fenêtre de changement de mot de passe"""

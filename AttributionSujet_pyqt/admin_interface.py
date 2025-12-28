@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt, QDateTime
 from PyQt5.QtGui import QFont, QPalette, QColor
 from datetime import datetime
+from PyQt5.QtWidgets import QProgressDialog
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 55555
@@ -69,11 +70,13 @@ class AdminPanel(QMainWindow):
         self.tab_gestion_utilisateurs = QWidget()
         self.tab_configuration = QWidget()
         self.tab_statistiques = QWidget()
+        self.tab_algorithme = QWidget()  # NOUVEAU : Onglet Algorithme
         
         self.tab_widget.addTab(self.tab_gestion_sujets, "📝 Sujets")
         self.tab_widget.addTab(self.tab_gestion_utilisateurs, "👥 Utilisateurs")
         self.tab_widget.addTab(self.tab_configuration, "⚙️ Configuration")
         self.tab_widget.addTab(self.tab_statistiques, "📊 Statistiques")
+        self.tab_widget.addTab(self.tab_algorithme, "⚙️ Algorithme")  # NOUVEAU : Ajout de l'onglet
         
         self.setCentralWidget(self.tab_widget)
         
@@ -82,6 +85,7 @@ class AdminPanel(QMainWindow):
         self.init_tab_gestion_utilisateurs()
         self.init_tab_configuration()
         self.init_tab_statistiques()
+        self.init_tab_algorithme()  # NOUVEAU : Initialisation de l'onglet algorithme
         
         # Charger les données
         self.load_sujets()
@@ -116,6 +120,13 @@ class AdminPanel(QMainWindow):
         action_deconnexion.setShortcut("Ctrl+Q")
         action_deconnexion.triggered.connect(self.deconnexion)
         
+        # NOUVEAU : Menu Attribution
+        menu_attribution = menubar.addMenu("🎯 Attribution")
+        
+        action_lancer = menu_attribution.addAction("🚀 Lancer l'attribution")
+        action_lancer.setShortcut("Ctrl+A")
+        action_lancer.triggered.connect(self.lancer_attribution)
+        
         # Menu Aide
         menu_aide = menubar.addMenu("❓ Aide")
         
@@ -133,7 +144,24 @@ class AdminPanel(QMainWindow):
         header.addWidget(lbl_titre)
         header.addStretch()
         
-        # Boutons d'action
+        # NOUVEAU : Bouton pour lancer l'attribution
+        btn_attribution = QPushButton("🚀 Lancer l'attribution")
+        btn_attribution.setStyleSheet("""
+            QPushButton {
+                background: #9C27B0;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #AB47BC;
+            }
+        """)
+        btn_attribution.clicked.connect(self.lancer_attribution)
+        btn_attribution.setToolTip("Exécute l'algorithme d'attribution des sujets")
+        
+        # Boutons existants
         btn_ajouter = QPushButton("➕ Ajouter")
         btn_ajouter.setStyleSheet("""
             QPushButton {
@@ -177,6 +205,8 @@ class AdminPanel(QMainWindow):
         """)
         btn_supprimer.clicked.connect(self.supprimer_sujet)
         
+        # Ajouter les boutons dans l'ordre
+        header.addWidget(btn_attribution)
         header.addWidget(btn_ajouter)
         header.addWidget(btn_modifier)
         header.addWidget(btn_supprimer)
@@ -411,24 +441,95 @@ class AdminPanel(QMainWindow):
         layout.addWidget(self.text_stats)
         
         self.tab_statistiques.setLayout(layout)
+
+    # ============================
+    # NOUVEAU : Onglet Algorithme d'Attribution
+    # ============================
+    def init_tab_algorithme(self):
+        """Initialise l'onglet de visualisation de l'algorithme"""
+        layout = QVBoxLayout()
+        
+        # Titre et boutons
+        header = QHBoxLayout()
+        lbl_titre = QLabel("⚙️ Algorithme d'Attribution")
+        lbl_titre.setStyleSheet("color: #FFD700; font-size: 20px; font-weight: bold;")
+        
+        btn_lancer = QPushButton("🚀 Lancer l'attribution")
+        btn_lancer.setStyleSheet("""
+            QPushButton {
+                background: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #66BB6A;
+            }
+        """)
+        btn_lancer.clicked.connect(self.lancer_attribution)
+        
+        header.addWidget(lbl_titre)
+        header.addStretch()
+        header.addWidget(btn_lancer)
+        
+        layout.addLayout(header)
+        
+        # Zone de logs étape par étape
+        self.text_logs = QTextEdit()
+        self.text_logs.setReadOnly(True)
+        self.text_logs.setStyleSheet("""
+            QTextEdit {
+                background: #1E1E1E;
+                color: #CCCCCC;
+                font-family: 'Courier New';
+                font-size: 11px;
+                border: 2px solid #FFD700;
+                border-radius: 5px;
+            }
+        """)
+        
+        layout.addWidget(self.text_logs)
+        
+        # Statistiques en temps réel
+        self.stats_widget = QTextEdit()
+        self.stats_widget.setReadOnly(True)
+        self.stats_widget.setMaximumHeight(200)
+        self.stats_widget.setStyleSheet("""
+            QTextEdit {
+                background: white;
+                font-size: 12px;
+                border: 2px solid #4CAF50;
+                border-radius: 5px;
+                padding: 10px;
+            }
+        """)
+        
+        layout.addWidget(self.stats_widget)
+        
+        self.tab_algorithme.setLayout(layout)
     
     # ============================
     # Fonctions de communication avec le serveur
     # ============================
     
-    def envoyer_requete(self, message):
+    def envoyer_requete(self, message, timeout=30):
         """Envoie une requête au serveur et retourne la réponse"""
         try:
             client = socket.socket()
+            client.settimeout(timeout)  # Timeout augmenté pour l'attribution
             client.connect((SERVER_IP, SERVER_PORT))
             client.send(message.encode())
-            reponse = client.recv(4096).decode()
+            reponse = client.recv(65536).decode()  # Buffer augmenté
             client.close()
             return reponse
+        except socket.timeout:
+            QMessageBox.critical(self, "Erreur", f"Timeout: le serveur n'a pas répondu dans les {timeout} secondes")
+            return None
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Impossible de communiquer avec le serveur: {e}")
             return None
-    
+        
     def load_sujets(self):
         """Charge la liste des sujets depuis le serveur"""
         try:
@@ -852,6 +953,130 @@ class AdminPanel(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de l'actualisation des statistiques: {e}")
     
+    # ============================
+    # NOUVEAU : Fonctions pour l'algorithme d'attribution
+    # ============================S
+    def lancer_attribution(self):
+        """Lance l'algorithme d'attribution"""
+        # Vérifier s'il y a des sujets
+        if self.table_sujets.rowCount() == 0:
+            QMessageBox.warning(self, "Erreur", "Aucun sujet disponible pour l'attribution.")
+            return
+        
+        # Vérifier s'il y a des utilisateurs
+        if self.table_utilisateurs.rowCount() == 0:
+            QMessageBox.warning(self, "Erreur", "Aucun utilisateur disponible pour l'attribution.")
+            return
+        
+        # Demander confirmation
+        reponse = QMessageBox.question(
+            self,
+            "Confirmation",
+            "<h3>🚀 Lancer l'algorithme d'attribution ?</h3>"
+            "<p>Cette action va :</p>"
+            "<ul>"
+            "<li>Exécuter l'algorithme d'attribution</li>"
+            "<li>Attribuer les sujets aux utilisateurs</li>"
+            "<li>Générer les listes d'attente</li>"
+            "<li>Mettre à jour tous les résultats</li>"
+            "</ul>"
+            "<p><b>⚠️ Cette action est irréversible !</b></p>",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reponse == QMessageBox.Yes:
+            try:
+                # Afficher un message de progression
+                progress = QProgressDialog("Lancement de l'attribution...", "Annuler", 0, 0, self)
+                progress.setWindowTitle("Attribution en cours")
+                progress.setWindowModality(Qt.WindowModal)
+                progress.show()
+                QApplication.processEvents()
+                
+                # Envoyer la requête au serveur
+                reponse_serveur = self.envoyer_requete("RUN_ATTRIBUTION")
+                
+                progress.close()
+                
+                if reponse_serveur == "ATTRIBUTION_DONE":
+                    QMessageBox.information(
+                        self, 
+                        "Succès", 
+                        "✅ Attribution terminée avec succès !\n\n"
+                        "Les résultats ont été calculés et sauvegardés.\n"
+                        "Les utilisateurs peuvent maintenant consulter leurs résultats."
+                    )
+                    
+                    # Actualiser les statistiques
+                    self.actualiser_statistiques()
+                    
+                elif reponse_serveur == "ATTRIBUTION_FAILED":
+                    QMessageBox.warning(
+                        self,
+                        "Erreur",
+                        "L'attribution a échoué.\n"
+                        "La date limite n'est peut-être pas encore atteinte."
+                    )
+                elif reponse_serveur and reponse_serveur.startswith("ERROR:"):
+                    QMessageBox.critical(
+                        self,
+                        "Erreur",
+                        f"Erreur lors de l'attribution :\n{reponse_serveur[6:]}"
+                    )
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Erreur",
+                        f"Réponse inattendue du serveur : {reponse_serveur}"
+                    )
+                    
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Erreur",
+                    f"Erreur lors du lancement de l'attribution :\n{str(e)}"
+                )
+    def actualiser_statistiques_avancees(self):
+        """Affiche les statistiques avancées"""
+        try:
+            # Récupérer les statistiques depuis le serveur
+            reponse = self.envoyer_requete("GET_ADVANCED_STATS")
+            
+            if reponse.startswith("ADVANCED_STATS:"):
+                stats_str = reponse[15:]
+                stats = ast.literal_eval(stats_str)
+                
+                html = f"""
+                <div style='font-family: Arial;'>
+                    <h3 style='color: #FFD700;'>📊 Statistiques Avancées</h3>
+                    <hr>
+                    <table style='width: 100%;'>
+                        <tr>
+                            <td><b>Sujets les plus populaires :</b></td>
+                            <td style='color: #4CAF50;'>{stats.get('sujets_populaires', 'N/A')}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Sujets les moins demandés :</b></td>
+                            <td style='color: #F44336;'>{stats.get('sujets_moins_demandes', 'N/A')}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Choix moyen par personne :</b></td>
+                            <td style='color: #2196F3;'>{stats.get('moyenne_choix', 0)}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Taux de satisfaction (1er choix) :</b></td>
+                            <td style='color: #9C27B0;'>{stats.get('taux_satisfaction', '0%')}</td>
+                        </tr>
+                    </table>
+                </div>
+                """
+                
+                self.stats_widget.setHtml(html)
+                
+        except Exception as e:
+            self.stats_widget.setText(f"Erreur: {e}")
+    
     def actualiser_donnees(self):
         """Actualise manuellement toutes les données"""
         self.load_sujets()
@@ -887,6 +1112,7 @@ class AdminPanel(QMainWindow):
             "<li>Visualisation des utilisateurs</li>"
             "<li>Configuration du système</li>"
             "<li>Statistiques en temps réel</li>"
+            "<li>Algorithme d'attribution</li>"  # NOUVEAU : Fonctionnalité ajoutée
             "</ul>"
             "<p>© 2024 - Tous droits réservés</p>")
 
