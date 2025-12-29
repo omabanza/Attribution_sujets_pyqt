@@ -65,7 +65,7 @@ def init_db():
 # ============================
 # NOUVEAU : Initialiser la base de données au démarrage
 # ============================
-init_db()
+
 
 # ============================
 # FONCTIONS POUR LES SUJETS (ADMIN)

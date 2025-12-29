@@ -1070,6 +1070,7 @@ class FenetreChoixSujets(QWidget):
             self.status_label.setText(f"❌ Erreur lors du chargement: {str(e)[:50]}")
             QMessageBox.critical(self, "Erreur", f"Impossible de charger les sujets: {e}")
     def valider_choix(self):
+        
         """Valide les choix de sujets"""
         # Vérifier si des sujets ont été sélectionnés
         sujets_choisis = [cb for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
@@ -1078,71 +1079,63 @@ class FenetreChoixSujets(QWidget):
             QMessageBox.warning(self, "Erreur", "Veuillez sélectionner au moins un sujet.")
             return
 
-        # Créer une liste des titres des sujets choisis
-        titres_choisis = [cb.text() for cb in sujets_choisis]
+        # Créer une liste des IDs des sujets choisis
+        ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+        
+        print(f"DEBUG: IDs des sujets choisis: {ids}")
+        print(f"DEBUG: Login: {self.login}")
         
         # Afficher une boîte de dialogue de confirmation
         msg = QMessageBox(self)
         msg.setWindowTitle("Confirmation des choix")
         msg.setText(f"<h3>Vous avez sélectionné {len(sujets_choisis)} sujet(s)</h3>")
-        msg.setInformativeText("<b>Sujets choisis :</b><br>" + "<br>".join(f"• {titre}" for titre in titres_choisis))
+        msg.setInformativeText("<b>Sujets choisis :</b><br>" + "<br>".join(f"• {cb.text()}" for cb in sujets_choisis))
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.Yes)
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #4682B4;
-            }
-            QLabel {
-                color: white;
-            }
-        """)
         
         if msg.exec_() == QMessageBox.Yes:
             try:
                 self.status_label.setText("🔄 Envoi des choix au serveur...")
-                QApplication.processEvents()  # Mettre à jour l'interface
+                QApplication.processEvents()
                 
                 client = socket.socket()
                 client.settimeout(5)
                 client.connect((SERVER_IP, SERVER_PORT))
                 
-                # Récupérer les IDs des sujets choisis
-                ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+                # Construire le message
                 message = f"CHOIX_SUJETS:{self.login}:{','.join(ids)}"
+                print(f"DEBUG: Message envoyé: {message}")
                 
-                print(f"DEBUG: Envoi des choix: {message}")
                 client.send(message.encode())
                 
                 reponse = client.recv(1024).decode()
                 client.close()
                 
-                print(f"DEBUG: Réponse serveur: {reponse}")
+                print(f"DEBUG: Réponse serveur: '{reponse}'")
                 
                 if reponse == "CHOIX_ENREGISTRE":
                     self.status_label.setText("✅ Choix enregistrés avec succès")
                     QMessageBox.information(self, "Succès", 
                         "Vos choix ont été enregistrés avec succès ! ✅\n\n"
-                        "L'administrateur traitera votre demande.\n"
-                        "Vous serez notifié(e) une fois l'attribution terminée.")
+                        f"{len(sujets_choisis)} sujet(s) sauvegardé(s).")
+                elif reponse == "CHOIX_VIDE":
+                    QMessageBox.warning(self, "Erreur", "Aucun sujet sélectionné.")
+                elif reponse == "CHOIX_INVALIDE":
+                    QMessageBox.warning(self, "Erreur", "Format de sélection invalide.")
                 else:
-                    self.status_label.setText("❌ Échec de l'enregistrement")
                     QMessageBox.warning(self, "Erreur", 
-                        f"Erreur lors de l'enregistrement de vos choix.\n"
+                        f"Erreur lors de l'enregistrement.\n"
                         f"Réponse serveur: {reponse}")
-                        
+                            
             except socket.timeout:
                 self.status_label.setText("❌ Timeout - Serveur ne répond pas")
                 QMessageBox.critical(self, "Erreur", 
-                    "Le serveur ne répond pas (timeout).\n"
-                    "Vérifiez que le serveur est démarré.")
+                    "Le serveur ne répond pas (timeout).")
             except ConnectionRefusedError:
                 self.status_label.setText("❌ Serveur non disponible")
                 QMessageBox.critical(self, "Erreur", 
                     "Impossible de se connecter au serveur.\n"
-                    "Assurez-vous que le serveur est démarré:\n"
-                    "1. Ouvrez un terminal\n"
-                    "2. Exécutez: python serveur_tcp_sqlite.py\n"
-                    "3. Attendez le message 'Serveur en écoute'")
+                    "Assurez-vous que le serveur est démarré.")
             except Exception as e:
                 self.status_label.setText(f"❌ Erreur: {str(e)[:30]}")
                 QMessageBox.critical(self, "Erreur", 

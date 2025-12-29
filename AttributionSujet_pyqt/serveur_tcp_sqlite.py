@@ -192,7 +192,7 @@ def gerer_client(conn, addr):
                     else:
                         conn.sendall("DELETE_FAILED".encode("utf-8"))
 
-                # Format : CHOIX_SUJETS:login:id1,id2,id3
+                # Format : CHOIX_SUJETS:login:id1,id2,id3 (SECTION AMÉLIORÉE)
                 elif message.startswith("CHOIX_SUJETS:"):
                     print(">>> Requête: CHOIX_SUJETS")
                     try:
@@ -202,12 +202,37 @@ def gerer_client(conn, addr):
                             conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
                             continue
                         _, login, sujets_ids_str = parts
-                        sujets_ids = [int(id_str) for id_str in sujets_ids_str.split(",") if id_str.strip()]
+                        
+                        # DEBUG: Afficher les données reçues
+                        print(f"   Login: {login}")
+                        print(f"   Sujets IDs string: '{sujets_ids_str}'")
+                        
+                        # Vérifier si la chaîne n'est pas vide
+                        if not sujets_ids_str.strip():
+                            conn.sendall("CHOIX_VIDE".encode("utf-8"))
+                            print("<<< Aucun sujet sélectionné")
+                            continue
+                            
+                        # Convertir en liste d'entiers
+                        try:
+                            sujets_ids = [int(id_str.strip()) for id_str in sujets_ids_str.split(",") if id_str.strip()]
+                        except ValueError as e:
+                            print(f"   Erreur conversion IDs: {e}")
+                            conn.sendall("CHOIX_INVALIDE".encode("utf-8"))
+                            continue
+                            
+                        print(f"   Sujets IDs convertis: {sujets_ids}")
+                        
                         if enregistrer_choix_sujets(login, sujets_ids):
                             conn.sendall("CHOIX_ENREGISTRE".encode("utf-8"))
+                            print(f"<<< {len(sujets_ids)} choix enregistrés pour {login}")
                         else:
                             conn.sendall("CHOIX_ECHEC".encode("utf-8"))
+                            print("<<< Échec de l'enregistrement")
                     except Exception as e:
+                        print(f"   Exception CHOIX_SUJETS: {e}")
+                        import traceback
+                        traceback.print_exc()
                         conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
                     continue
                 

@@ -4,10 +4,15 @@ import sqlite3
 from collections import defaultdict
 import os
 
+# Importez votre module existant
+import module_Attribution_sujets_pyqt as db_module
+
 DB_PATH = os.path.join("data", "base.sqlite")
 
 class AlgorithmeAttribution:
     def __init__(self):
+        # Assurez-vous que la base est initialisée
+        db_module.init_db()  # Initialise les tables si elles n'existent pas
         self.conn = sqlite3.connect(DB_PATH)
         self.conn.row_factory = sqlite3.Row
     
@@ -278,8 +283,6 @@ class AlgorithmeAttribution:
         self.conn.close()
 
 
-# Remplacez la fonction lancer_attribution() complète (dans Algorithme_attribution.py)
-# Modifiez la fonction lancer_attribution() à partir de la ligne 251
 def lancer_attribution():
     """Fonction principale pour lancer l'attribution"""
     print("🚀 Lancement de l'algorithme d'attribution...")
@@ -287,23 +290,40 @@ def lancer_attribution():
     
     algo = AlgorithmeAttribution()
     
-    # MODIFICATION : Vérifier si AU MOINS UN sujet a sa date limite passée
+    # Vérifier si AU MOINS UN sujet a sa date limite passée
     cursor = algo.conn.cursor()
+    
+    # DÉBUG : Afficher toutes les dates pour comprendre
+    cursor.execute("""
+        SELECT titre, date_limite, actif,
+               date('now') as aujourdhui,
+               julianday(date('now')) - julianday(date_limite) as jours_ecart
+        FROM sujets 
+        WHERE actif = 1
+    """)
+    
+    dates_info = cursor.fetchall()
+    print("\n=== DÉBUG : VÉRIFICATION DES DATES ===")
+    for row in dates_info:
+        print(f"  • {row['titre']}: date_limite={row['date_limite']}, aujourd'hui={row['aujourdhui']}, écart={row['jours_ecart']} jours")
+    
+    # Requête corrigée pour vérifier les dates limites
     cursor.execute("""
         SELECT COUNT(*) as nb_sujets_eligibles 
         FROM sujets 
         WHERE actif = 1 
-        AND date_limite <= date('now')
+        AND (date_limite IS NULL OR date(date_limite) <= date('now'))
     """)
+    
     nb_sujets_eligibles = cursor.fetchone()['nb_sujets_eligibles']
     
     if nb_sujets_eligibles == 0:
-        print("⚠️  Aucun sujet n'a sa date limite passée !")
+        print("\n⚠️  Aucun sujet n'a sa date limite passée !")
         print("   L'attribution ne peut être lancée que pour les sujets dont la date limite est atteinte.")
         
         # OPTION : Informer sur les dates limites
         cursor.execute("""
-            SELECT titre, date_limite 
+            SELECT titre, date_limite, actif
             FROM sujets 
             WHERE actif = 1 
             ORDER BY date_limite
@@ -312,38 +332,83 @@ def lancer_attribution():
         
         print("\n   Dates limites des sujets actifs :")
         for sujet in sujets_info:
-            date_limite = datetime.strptime(sujet['date_limite'], '%Y-%m-%d')
-            statut = "✓ PASSÉE" if date_limite.date() <= datetime.now().date() else "✗ FUTURE"
-            print(f"   • {sujet['titre']} : {sujet['date_limite']} ({statut})")
+            try:
+                date_limite = datetime.strptime(sujet['date_limite'], '%Y-%m-%d')
+                aujourdhui = datetime.now()
+                statut = "✓ PASSÉE" if date_limite.date() <= aujourdhui.date() else "✗ FUTURE"
+                print(f"   • {sujet['titre']} : {sujet['date_limite']} ({statut})")
+            except:
+                print(f"   • {sujet['titre']} : {sujet['date_limite']} (Format invalide)")
         
-        # Retourner un tuple cohérent même en cas d'échec
+        # OPTION 2 : Forcer l'attribution quand même (pour tests)
+        reponse = input("\nVoulez-vous forcer l'attribution quand même ? (oui/non): ")
+        if reponse.lower() == 'oui':
+            print("Forçage de l'attribution...")
+            # On continue même si les dates ne sont pas passées
+            nb_sujets_eligibles = 1
+        else:
+            algo.close()
+            return False, None, None
+    
+    print(f"\n✅ {nb_sujets_eligibles} sujet(s) avec date limite passée ou forcée")
+    
+    # VÉRIFIER D'ABORD SI DES CHOIX EXISTENT
+    cursor.execute("SELECT COUNT(*) as nb_choix FROM choix_utilisateurs")
+    nb_choix_total = cursor.fetchone()['nb_choix']
+    
+    if nb_choix_total == 0:
+        print("❌ Aucun choix enregistré par les utilisateurs !")
+        print("   Les utilisateurs doivent d'abord sélectionner des sujets.")
         algo.close()
         return False, None, None
     
-    print(f"✅ {nb_sujets_eligibles} sujet(s) avec date limite passée, lancement de l'attribution...\n")
+    print(f"✅ {nb_choix_total} choix(s) enregistrés par les utilisateurs\n")
     
     try:
-        # MODIFICATION : Filtrer pour utiliser seulement les sujets dont la date limite est passée
+        # OPTION : Inclure tous les sujets actifs, indépendamment de la date limite
         cursor.execute("""
-            SELECT id, titre, capacite_max, actif
+            SELECT id, titre, capacite_max, actif, date_limite
             FROM sujets
-            WHERE actif = 1 
-            AND date_limite <= date('now')
+            WHERE actif = 1
         """)
         sujets_eligibles = cursor.fetchall()
         sujets_eligibles_ids = [s['id'] for s in sujets_eligibles]
         
-        if not sujets_eligibles_ids:
-            print("❌ Aucun sujet éligible pour l'attribution")
+        print(f"✅ {len(sujets_eligibles)} sujet(s) actif(s) inclus dans l'attribution")
+        
+        # DEBUG: Afficher les sujets inclus
+        for sujet in sujets_eligibles:
+            print(f"   • {sujet['titre']} (ID: {sujet['id']}, Date limite: {sujet['date_limite']})")
+        
+        # DEBUG: Vérifier les choix pour ces sujets
+        cursor.execute(f"""
+            SELECT COUNT(*) as nb_choix_eligibles
+            FROM choix_utilisateurs
+            WHERE sujet_id IN ({','.join(['?']*len(sujets_eligibles_ids))})
+        """, sujets_eligibles_ids)
+        nb_choix_eligibles = cursor.fetchone()['nb_choix_eligibles']
+        
+        print(f"✅ {nb_choix_eligibles} choix pour les sujets éligibles")
+        
+        if nb_choix_eligibles == 0:
+            print("❌ Aucun choix enregistré pour les sujets actifs")
+            print("   Les utilisateurs n'ont pas sélectionné de sujets actifs.")
             algo.close()
             return False, None, None
         
-        print(f"Sujets éligibles pour l'attribution : {len(sujets_eligibles_ids)}")
-        for sujet in sujets_eligibles:
-            print(f"  • {sujet['titre']} (ID: {sujet['id']})")
-        print()
+        print(f"\n✅ Lancement de l'attribution...\n")
         
-        # MODIFICATION : Récupérer les choix seulement pour les sujets éligibles
+        # Exécuter l'algorithme d'attribution personnalisé
+        sujets_dict = {sujet['id']: {
+            'titre': sujet['titre'],
+            'capacite': sujet['capacite_max'],
+            'attribues': [],
+            'liste_attente': []
+        } for sujet in sujets_eligibles}
+        
+        utilisateurs_dict = {}
+        
+        # Récupérer les choix seulement pour les sujets éligibles
         cursor.execute(f"""
             SELECT 
                 u.id as user_id,
@@ -363,23 +428,6 @@ def lancer_attribution():
             ORDER BY c.ordre_preference
         """, sujets_eligibles_ids)
         choix = cursor.fetchall()
-        
-        if not choix:
-            print("❌ Aucun choix enregistré pour les sujets éligibles")
-            algo.close()
-            return False, None, None
-        
-        print(f"Choix récupérés : {len(choix)}")
-        
-        # Exécuter l'algorithme d'attribution personnalisé
-        sujets_dict = {sujet['id']: {
-            'titre': sujet['titre'],
-            'capacite': sujet['capacite_max'],
-            'attribues': [],
-            'liste_attente': []
-        } for sujet in sujets_eligibles}
-        
-        utilisateurs_dict = {}
         
         # Organiser les choix par utilisateur
         for row in choix:
@@ -404,7 +452,7 @@ def lancer_attribution():
                                   reverse=True)
         
         # Phase 1: Attribution des premiers choix
-        print("\n=== PHASE 1: Attribution des premiers choix ===")
+        print("=== PHASE 1: Attribution des premiers choix ===")
         for user_id, user_data in utilisateurs_tries:
             if not user_data['choix']:
                 continue
@@ -449,7 +497,8 @@ def lancer_attribution():
         print("\n=== PHASE 2: Cascade vers les choix suivants ===")
         for user_id, user_data in utilisateurs_tries:
             # Vérifier si l'utilisateur n'a pas encore de sujet attribué
-            if any(user_id in [u['user_id'] for sujet in sujets_dict.values() for u in sujet['attribues']]):
+            # Ligne 500 - Remplacez par :
+            if any(user_id == u['user_id'] for sujet in sujets_dict.values() for u in sujet['attribues']):
                 continue
             
             # Chercher dans les choix suivants
