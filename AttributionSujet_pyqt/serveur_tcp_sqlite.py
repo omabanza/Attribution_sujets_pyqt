@@ -76,12 +76,23 @@ def gerer_client(conn, addr):
                     print(">>> Requête: ADD_SUBJECT")
                     try:
                         from module_Attribution_sujets_pyqt import ajouter_sujet
+                        
+                        # Découper en 5 parties au maximum, mais garder la description intacte
                         parts = message.split(":", 4)
                         if len(parts) != 5:
                             conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
                             continue
+                        
                         _, titre, description, capacite_max, date_limite = parts
-                        if ajouter_sujet(titre, description, int(capacite_max), date_limite):
+                        
+                        # Convertir capacité en entier
+                        try:
+                            capacite_int = int(capacite_max)
+                        except ValueError:
+                            conn.sendall("ERROR:Capacité maximale doit être un nombre".encode("utf-8"))
+                            continue
+                        
+                        if ajouter_sujet(titre, description, capacite_int, date_limite):
                             conn.sendall("SUBJECT_ADDED".encode("utf-8"))
                             print("<<< Sujet ajouté avec succès")
                         else:
@@ -191,6 +202,102 @@ def gerer_client(conn, addr):
                         conn.sendall("ACCOUNT_DELETED".encode("utf-8"))
                     else:
                         conn.sendall("DELETE_FAILED".encode("utf-8"))
+                
+                # ============================
+                # NOUVELLE SECTION POUR GÉRER LES PRÉFÉRENCES
+                # ============================
+                
+                # Format : PREFERENCES:login:id1=ordre1,id2=ordre2,id3=ordre3...
+                elif message.startswith("PREFERENCES:"):
+                    print(">>> Requête: PREFERENCES (nouveau format avec ordres)")
+                    try:
+                        from module_Attribution_sujets_pyqt import enregistrer_preferences_sujets
+                        
+                        parts = message.split(":", 2)
+                        if len(parts) != 3:
+                            conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
+                            continue
+                        
+                        _, login, preferences_str = parts
+                        
+                        # DEBUG: Afficher les données reçues
+                        print(f"   Login: {login}")
+                        print(f"   Préférences string: '{preferences_str}'")
+                        
+                        # Vérifier si la chaîne n'est pas vide
+                        if not preferences_str.strip():
+                            conn.sendall("PREFERENCES_VIDES".encode("utf-8"))
+                            print("<<< Aucune préférence spécifiée")
+                            continue
+                        
+                        # Parser les préférences au format id=ordre
+                        try:
+                            preferences_dict = {}
+                            items = preferences_str.split(",")
+                            
+                            for item in items:
+                                item = item.strip()
+                                if not item:
+                                    continue
+                                    
+                                if "=" not in item:
+                                    print(f"   Format invalide pour l'item: '{item}'")
+                                    conn.sendall("PREFERENCES_INVALIDES".encode("utf-8"))
+                                    continue
+                                
+                                sujet_id_str, ordre_str = item.split("=", 1)
+                                
+                                try:
+                                    sujet_id = int(sujet_id_str.strip())
+                                    ordre = int(ordre_str.strip())
+                                except ValueError as e:
+                                    print(f"   Erreur conversion ID/ordre: {e}")
+                                    conn.sendall("PREFERENCES_INVALIDES".encode("utf-8"))
+                                    continue
+                                
+                                # Vérifier que l'ordre est positif
+                                if ordre <= 0:
+                                    print(f"   Ordre invalide: {ordre}")
+                                    conn.sendall("PREFERENCES_INVALIDES".encode("utf-8"))
+                                    continue
+                                
+                                preferences_dict[sujet_id] = ordre
+                            
+                            print(f"   Préférences parsées: {preferences_dict}")
+                            
+                            # Vérifier qu'il n'y a pas de doublons dans les ordres
+                            ordres = list(preferences_dict.values())
+                            if len(ordres) != len(set(ordres)):
+                                print(f"   Doublons détectés dans les ordres: {ordres}")
+                                conn.sendall("DOUBLONS_DETECTES".encode("utf-8"))
+                                continue
+                            
+                            # Trier les préférences par ordre croissant pour vérification
+                            preferences_triees = dict(sorted(preferences_dict.items(), key=lambda x: x[1]))
+                            print(f"   Préférences triées: {preferences_triees}")
+                            
+                        except Exception as e:
+                            print(f"   Erreur parsing préférences: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            conn.sendall("PREFERENCES_INVALIDES".encode("utf-8"))
+                            continue
+                        
+                        # Enregistrer les préférences dans la base de données
+                        if enregistrer_preferences_sujets(login, preferences_dict):
+                            conn.sendall("PREFERENCES_ENREGISTREES".encode("utf-8"))
+                            print(f"<<< {len(preferences_dict)} préférences enregistrées pour {login}")
+                            print(f"<<< Détail: {preferences_dict}")
+                        else:
+                            conn.sendall("PREFERENCES_ECHEC".encode("utf-8"))
+                            print("<<< Échec de l'enregistrement des préférences")
+                            
+                    except Exception as e:
+                        print(f"   Exception PREFERENCES: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
+                    continue
 
                 # Format : CHOIX_SUJETS:login:id1,id2,id3 (SECTION AMÉLIORÉE)
                 elif message.startswith("CHOIX_SUJETS:"):
@@ -313,7 +420,8 @@ def gerer_client(conn, addr):
                 elif ":" in message and not message.startswith(("REGISTER:", "CHANGE_PASSWORD:", "DELETE_ACCOUNT:", "CHOIX_SUJETS:", 
                                                                 "GET_ALL_SUBJECTS", "GET_ALL_USERS", "ADD_SUBJECT:", 
                                                                 "UPDATE_SUBJECT:", "DELETE_SUBJECT:", "GET_ACTIVE_SUBJECTS",
-                                                                "RUN_ATTRIBUTION", "GET_RESULTS:", "GET_ADVANCED_STATS")):
+                                                                "RUN_ATTRIBUTION", "GET_RESULTS:", "GET_ADVANCED_STATS",
+                                                                "PREFERENCES:")):
                     login, mdp = message.split(":", 1)
                     
                     print(f">>> TENTATIVE DE CONNEXION: login='{login}', mdp='{mdp}'")

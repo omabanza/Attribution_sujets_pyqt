@@ -684,6 +684,9 @@ class FenetreSuppressionCompte(QWidget):
 # ============================
 # Fenêtre Choix de Sujets (Checkbox) - MODIFIÉE POUR RÉCUPÉRER LES SUJETS DEPUIS LE SERVEUR
 # ============================
+# ============================
+# Fenêtre Choix de Sujets - MODIFIÉE POUR ORDONNER LES PRÉFÉRENCES
+# ============================
 class FenetreChoixSujets(QWidget):
     def __init__(self, login, page_connexion):
         super().__init__()
@@ -692,7 +695,9 @@ class FenetreChoixSujets(QWidget):
         self.fenetre_changement_mdp = None
         self.fenetre_suppression = None
         self.sujets = []
-        self.checkbox_dict = {}
+        self.combobox_dict = {}  # Dictionnaire pour stocker les combobox par ID sujet
+        self.spinbox_dict = {}   # Dictionnaire pour stocker les spinbox par ID sujet
+        self.preferences = {}    # Dictionnaire pour stocker les préférences choisies
         
         self.setWindowTitle(f"Choix de sujets - {login}")
         self.showMaximized()
@@ -816,10 +821,31 @@ class FenetreChoixSujets(QWidget):
         layout_haut.addWidget(btn_retour)
 
         # Titre centré
-        titre = QLabel("📋 Sujets disponibles pour votre choix")
+        titre = QLabel("📋 Classement des sujets par ordre de préférence")
         titre.setFont(QFont("Arial", 28, QFont.Bold))
         titre.setStyleSheet("color:white;")
         titre.setAlignment(Qt.AlignCenter)
+
+        # Instructions détaillées
+        instructions = QLabel(
+            "<center>"
+            "<b style='color:#FFD700;'>Instructions importantes :</b><br>"
+            "1. <b>Attribuez un ordre de préférence à chaque sujet</b> (1 = préféré)<br>"
+            "2. Chaque <b>numéro doit être unique</b> (pas de doublons)<br>"
+            "3. Vous pouvez <b>ne pas classer tous les sujets</b><br>"
+            "4. Les sujets non classés ne seront pas pris en compte"
+            "</center>"
+        )
+        instructions.setFont(QFont("Arial", 12))
+        instructions.setStyleSheet("""
+            color: white; 
+            background: rgba(0, 0, 0, 0.3); 
+            padding: 15px; 
+            border-radius: 10px;
+            border: 2px solid #FFD700;
+        """)
+        instructions.setAlignment(Qt.AlignCenter)
+        instructions.setWordWrap(True)
 
         # Frame pour les sujets avec défilement
         self.scroll_area = QScrollArea()
@@ -853,9 +879,9 @@ class FenetreChoixSujets(QWidget):
         self.scroll_area.setWidget(self.sujets_widget)
 
         # Informations en bas
-        info_label = QLabel("ℹ️ Sélectionnez les sujets qui vous intéressent (vous pouvez en choisir plusieurs)")
+        info_label = QLabel("ℹ️ Sélectionnez les sujets qui vous intéressent en leur attribuant un ordre de préférence")
         info_label.setFont(QFont("Arial", 12))
-        info_label.setStyleSheet("color: #FFD700; background: rgba(0, 0, 0, 0.3); padding: 10px; border-radius: 8px;")
+        info_label.setStyleSheet("color: #81C784; background: rgba(0, 0, 0, 0.3); padding: 10px; border-radius: 8px;")
         info_label.setAlignment(Qt.AlignCenter)
 
         # Boutons Valider / Résultats
@@ -896,14 +922,32 @@ class FenetreChoixSujets(QWidget):
         """)
         btn_resultat.clicked.connect(self.afficher_resultats)
 
+        # Bouton pour réinitialiser les préférences
+        btn_reset = QPushButton("🔄 Réinitialiser")
+        btn_reset.setFont(QFont("Arial", 14))
+        btn_reset.setStyleSheet("""
+            QPushButton {
+                background: #FF8C00;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 8px;
+                border: 2px solid #FFA500;
+            }
+            QPushButton:hover {
+                background: #FF9900;
+            }
+        """)
+        btn_reset.clicked.connect(self.reinitialiser_preferences)
+
         layout_boutons = QHBoxLayout()
         layout_boutons.setAlignment(Qt.AlignCenter)
-        layout_boutons.setSpacing(30)
+        layout_boutons.setSpacing(20)
+        layout_boutons.addWidget(btn_reset)
         layout_boutons.addWidget(btn_valider)
         layout_boutons.addWidget(btn_resultat)
         
         # ------------------------------
-        # 2. CRÉATION DE status_label - MAINTENANT !
+        # 2. CRÉATION DE status_label
         # ------------------------------
         self.status_label = QLabel("Prêt - Connecté au serveur")
         self.status_label.setFont(QFont("Arial", 10))
@@ -914,9 +958,10 @@ class FenetreChoixSujets(QWidget):
         # 3. CONSTRUCTION DU LAYOUT PRINCIPAL
         # ------------------------------
         layout = QVBoxLayout()
-        layout.setSpacing(20)
+        layout.setSpacing(15)
         layout.addLayout(layout_haut)
         layout.addWidget(titre)
+        layout.addWidget(instructions)
         layout.addWidget(info_label)
         layout.addWidget(self.scroll_area, 1)  # 1 = étirement
         layout.addLayout(layout_boutons)
@@ -926,7 +971,7 @@ class FenetreChoixSujets(QWidget):
         self.setLayout(layout)
         
         # ------------------------------
-        # 4. MAINTENANT, charger les sujets (status_label existe)
+        # 4. Charger les sujets
         # ------------------------------
         self.charger_sujets()
         
@@ -988,12 +1033,16 @@ class FenetreChoixSujets(QWidget):
                 if child.widget():
                     child.widget().deleteLater()
             
+            # Réinitialiser les dictionnaires
+            self.combobox_dict = {}
+            self.spinbox_dict = {}
+            self.preferences = {}
+            
             # Récupérer les sujets DEPUIS LE SERVEUR TCP
             self.status_label.setText("🔄 Récupération des sujets en cours...")
             QApplication.processEvents()  # Mettre à jour l'interface
             
             self.sujets = self.get_sujets_from_server()
-            self.checkbox_dict = {}
             
             if not self.sujets:
                 lbl_aucun = QLabel("Aucun sujet disponible pour le moment.\nL'administrateur ajoutera des sujets bientôt.")
@@ -1004,6 +1053,28 @@ class FenetreChoixSujets(QWidget):
                 self.status_label.setText("✅ Aucun sujet disponible")
                 return
             
+            # En-tête des colonnes
+            header_widget = QWidget()
+            header_layout = QHBoxLayout()
+            header_layout.setContentsMargins(15, 5, 15, 5)
+            
+            lbl_header_sujet = QLabel("📝 SUJET")
+            lbl_header_sujet.setFont(QFont("Arial", 14, QFont.Bold))
+            lbl_header_sujet.setStyleSheet("color: #4DD0E1;")
+            lbl_header_sujet.setFixedWidth(400)
+            
+            lbl_header_ordre = QLabel("🎯 ORDRE DE PRÉFÉRENCE")
+            lbl_header_ordre.setFont(QFont("Arial", 14, QFont.Bold))
+            lbl_header_ordre.setStyleSheet("color: #FFD700;")
+            lbl_header_ordre.setFixedWidth(200)
+            
+            header_layout.addWidget(lbl_header_sujet)
+            header_layout.addStretch()
+            header_layout.addWidget(lbl_header_ordre)
+            
+            header_widget.setLayout(header_layout)
+            self.sujets_layout.addWidget(header_widget)
+            
             for sujet in self.sujets:
                 _id = sujet[0]
                 titre_sujet = sujet[1]
@@ -1013,97 +1084,250 @@ class FenetreChoixSujets(QWidget):
                 sujet_frame = QFrame()
                 sujet_frame.setStyleSheet("""
                     QFrame {
-                        background-color: rgba(255, 255, 255, 0.15);
-                        border-radius: 12px;
-                        border: 2px solid rgba(255, 255, 255, 0.2);
+                        background-color: rgba(255, 255, 255, 0.1);
+                        border-radius: 10px;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
                     }
                     QFrame:hover {
-                        background-color: rgba(255, 255, 255, 0.2);
-                        border: 2px solid rgba(255, 255, 255, 0.3);
+                        background-color: rgba(255, 255, 255, 0.15);
+                        border: 1px solid rgba(255, 255, 255, 0.3);
                     }
                 """)
                 
-                frame_layout = QVBoxLayout()
-                frame_layout.setSpacing(8)
+                frame_layout = QHBoxLayout()
+                frame_layout.setSpacing(15)
                 frame_layout.setContentsMargins(15, 15, 15, 15)
                 
-                # Checkbox avec titre
-                cb = QCheckBox(titre_sujet)
-                cb.setFont(QFont("Arial", 16, QFont.Bold))
-                cb.setStyleSheet("color: #81C784;")
-                self.checkbox_dict[_id] = cb
+                # Partie gauche : informations du sujet
+                info_widget = QWidget()
+                info_layout = QVBoxLayout()
+                info_layout.setSpacing(5)
                 
-                # Description - CORRECTION ICI
+                # Titre du sujet
+                lbl_titre = QLabel(titre_sujet)
+                lbl_titre.setFont(QFont("Arial", 14, QFont.Bold))
+                lbl_titre.setStyleSheet("color: #81C784;")
+                lbl_titre.setWordWrap(True)
+                
+                # Description
                 if description:
                     lbl_desc = QLabel(description)
-                    lbl_desc.setFont(QFont("Arial", 14))
-                    lbl_desc.setStyleSheet("color: #81C784; margin-left: 25px;")
+                    lbl_desc.setFont(QFont("Arial", 12))
+                    lbl_desc.setStyleSheet("color: #B0BEC5;")
                     lbl_desc.setWordWrap(True)
                 else:
                     lbl_desc = QLabel("Aucune description fournie")
-                    # CORRECTION : Pas de QFont.Italic, utiliser le style CSS
-                    lbl_desc.setStyleSheet("color: #AAAAAA; margin-left: 25px; font-style: italic;")
-                    lbl_desc.setFont(QFont("Arial", 12))
+                    lbl_desc.setStyleSheet("color: #AAAAAA; font-style: italic;")
+                    lbl_desc.setFont(QFont("Arial", 11))
                     lbl_desc.setWordWrap(True)
                 
-                # Détails
+                # Détails (ID)
                 lbl_details = QLabel(f"📌 ID: {_id}")
-                lbl_details.setFont(QFont("Arial", 12))
-                lbl_details.setStyleSheet("color: #4DD0E1; margin-left: 25px;")
+                lbl_details.setFont(QFont("Arial", 11))
+                lbl_details.setStyleSheet("color: #4DD0E1;")
                 
-                frame_layout.addWidget(cb)
-                frame_layout.addWidget(lbl_desc)
-                frame_layout.addWidget(lbl_details)
+                info_layout.addWidget(lbl_titre)
+                info_layout.addWidget(lbl_desc)
+                info_layout.addWidget(lbl_details)
+                info_widget.setLayout(info_layout)
+                
+                # Partie droite : sélection de l'ordre de préférence
+                pref_widget = QWidget()
+                pref_layout = QVBoxLayout()
+                pref_layout.setAlignment(Qt.AlignCenter)
+                
+                # SpinBox pour choisir l'ordre (0 = non sélectionné)
+                spinbox = QSpinBox()
+                spinbox.setRange(0, len(self.sujets))  # 0 = non classé
+                spinbox.setValue(0)  # Par défaut à 0 (non classé)
+                spinbox.setFont(QFont("Arial", 12))
+                spinbox.setStyleSheet("""
+                    QSpinBox {
+                        background: white;
+                        color: #2C3E50;
+                        padding: 8px;
+                        border-radius: 6px;
+                        border: 2px solid #3498DB;
+                        min-width: 80px;
+                    }
+                    QSpinBox::up-button, QSpinBox::down-button {
+                        width: 25px;
+                    }
+                """)
+                spinbox.setToolTip(f"Entrez l'ordre de préférence pour: {titre_sujet}\n0 = non classé")
+                
+                # Label explicatif
+                lbl_instruction = QLabel("(0 = non classé)")
+                lbl_instruction.setFont(QFont("Arial", 10))
+                lbl_instruction.setStyleSheet("color: #FFD700;")
+                lbl_instruction.setAlignment(Qt.AlignCenter)
+                
+                pref_layout.addWidget(spinbox)
+                pref_layout.addWidget(lbl_instruction)
+                pref_widget.setLayout(pref_layout)
+                
+                # Ajouter au layout du frame
+                frame_layout.addWidget(info_widget, 1)  # 1 = étirement
+                frame_layout.addWidget(pref_widget)
                 
                 sujet_frame.setLayout(frame_layout)
                 self.sujets_layout.addWidget(sujet_frame)
+                
+                # Stocker les références
+                self.spinbox_dict[_id] = spinbox
+                
+                # Connecter le signal pour vérifier les doublons
+                spinbox.valueChanged.connect(self.verifier_doublons)
             
             # Ajouter un stretch à la fin
             self.sujets_layout.addStretch()
             
             # Mettre à jour la barre de statut
-            self.status_label.setText(f"✅ {len(self.sujets)} sujet(s) disponible(s) - Prêt")
+            self.status_label.setText(f"✅ {len(self.sujets)} sujet(s) disponible(s) - Attribuez un ordre de préférence")
             
         except Exception as e:
             print(f"Erreur lors du chargement des sujets: {e}")
-            # Maintenant status_label existe toujours
             self.status_label.setText(f"❌ Erreur lors du chargement: {str(e)[:50]}")
             QMessageBox.critical(self, "Erreur", f"Impossible de charger les sujets: {e}")
-    def valider_choix(self):
-        
-        """Valide les choix de sujets"""
-        # Vérifier si des sujets ont été sélectionnés
-        sujets_choisis = [cb for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
-        
-        if not sujets_choisis:
-            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner au moins un sujet.")
-            return
 
-        # Créer une liste des IDs des sujets choisis
-        ids = [str(_id) for _id, cb in self.checkbox_dict.items() if cb.isChecked()]
+    def verifier_doublons(self):
+        """Vérifie s'il y a des doublons dans les ordres de préférence"""
+        valeurs = {}
+        doublons = []
         
-        print(f"DEBUG: IDs des sujets choisis: {ids}")
-        print(f"DEBUG: Login: {self.login}")
+        # Collecter toutes les valeurs non nulles
+        for sujet_id, spinbox in self.spinbox_dict.items():
+            valeur = spinbox.value()
+            if valeur > 0:  # Seulement les valeurs positives
+                if valeur in valeurs:
+                    valeurs[valeur].append(sujet_id)
+                    doublons.append(valeur)
+                else:
+                    valeurs[valeur] = [sujet_id]
         
-        # Afficher une boîte de dialogue de confirmation
+        # Mettre en évidence les doublons
+        for sujet_id, spinbox in self.spinbox_dict.items():
+            valeur = spinbox.value()
+            if valeur > 0 and valeur in doublons:
+                # Doublon détecté
+                spinbox.setStyleSheet("""
+                    QSpinBox {
+                        background: #FFE0E0;
+                        color: #D32F2F;
+                        padding: 8px;
+                        border-radius: 6px;
+                        border: 2px solid #F44336;
+                        min-width: 80px;
+                    }
+                """)
+                spinbox.setToolTip(f"ATTENTION : L'ordre {valeur} est utilisé plusieurs fois !")
+            elif valeur > 0:
+                # Valeur unique
+                spinbox.setStyleSheet("""
+                    QSpinBox {
+                        background: white;
+                        color: #2C3E50;
+                        padding: 8px;
+                        border-radius: 6px;
+                        border: 2px solid #4CAF50;
+                        min-width: 80px;
+                    }
+                """)
+                spinbox.setToolTip("OK - Ordre unique")
+            else:
+                # Valeur 0 (non classé)
+                spinbox.setStyleSheet("""
+                    QSpinBox {
+                        background: #F5F5F5;
+                        color: #757575;
+                        padding: 8px;
+                        border-radius: 6px;
+                        border: 2px solid #BDBDBD;
+                        min-width: 80px;
+                    }
+                """)
+                spinbox.setToolTip("Non classé")
+        
+        # Mettre à jour le statut
+        if doublons:
+            self.status_label.setText(f"⚠️ Attention : doublons détectés (ordres: {', '.join(map(str, doublons))})")
+        else:
+            self.status_label.setText("✅ Aucun doublon détecté - Prêt à valider")
+
+    def reinitialiser_preferences(self):
+        """Réinitialise toutes les préférences à 0"""
+        for spinbox in self.spinbox_dict.values():
+            spinbox.setValue(0)
+        self.status_label.setText("✅ Toutes les préférences ont été réinitialisées")
+
+    def valider_choix(self):
+        """Valide les choix de sujets avec ordre de préférence"""
+        # Vérifier les doublons
+        valeurs = {}
+        doublons = []
+        
+        for sujet_id, spinbox in self.spinbox_dict.items():
+            valeur = spinbox.value()
+            if valeur > 0:
+                if valeur in valeurs:
+                    doublons.append(valeur)
+                else:
+                    valeurs[valeur] = sujet_id
+        
+        if doublons:
+            QMessageBox.warning(self, "Erreur de classement", 
+                f"<b>Des doublons ont été détectés !</b><br><br>"
+                f"Les ordres suivants sont utilisés plusieurs fois :<br>"
+                f"<b>{', '.join(map(str, doublons))}</b><br><br>"
+                f"Chaque ordre de préférence doit être unique.")
+            return
+        
+        # Collecter les préférences non nulles
+        preferences = {}
+        for sujet_id, spinbox in self.spinbox_dict.items():
+            valeur = spinbox.value()
+            if valeur > 0:
+                preferences[sujet_id] = valeur
+        
+        if not preferences:
+            QMessageBox.warning(self, "Erreur", "Veuillez attribuer un ordre de préférence à au moins un sujet.")
+            return
+        
+        # Trier par ordre croissant
+        sujets_tries = sorted(preferences.items(), key=lambda x: x[1])
+        
+        # Afficher une confirmation
         msg = QMessageBox(self)
-        msg.setWindowTitle("Confirmation des choix")
-        msg.setText(f"<h3>Vous avez sélectionné {len(sujets_choisis)} sujet(s)</h3>")
-        msg.setInformativeText("<b>Sujets choisis :</b><br>" + "<br>".join(f"• {cb.text()}" for cb in sujets_choisis))
+        msg.setWindowTitle("Confirmation des préférences")
+        msg.setText(f"<h3>Vous avez classé {len(preferences)} sujet(s)</h3>")
+        
+        details = "<b>Vos préférences :</b><br><br>"
+        for sujet_id, ordre in sujets_tries:
+            # Trouver le titre du sujet
+            titre = ""
+            for s in self.sujets:
+                if s[0] == sujet_id:
+                    titre = s[1]
+                    break
+            
+            details += f"<b>#{ordre}</b> → {titre}<br>"
+        
+        msg.setInformativeText(details)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.Yes)
         
         if msg.exec_() == QMessageBox.Yes:
             try:
-                self.status_label.setText("🔄 Envoi des choix au serveur...")
+                self.status_label.setText("🔄 Envoi des préférences au serveur...")
                 QApplication.processEvents()
                 
                 client = socket.socket()
                 client.settimeout(5)
                 client.connect((SERVER_IP, SERVER_PORT))
                 
-                # Construire le message
-                message = f"CHOIX_SUJETS:{self.login}:{','.join(ids)}"
+                # Construire le message au format: PREFERENCES:login:id1=ordre1,id2=ordre2,...
+                preferences_str = ",".join([f"{sujet_id}={ordre}" for sujet_id, ordre in preferences.items()])
+                message = f"PREFERENCES:{self.login}:{preferences_str}"
                 print(f"DEBUG: Message envoyé: {message}")
                 
                 client.send(message.encode())
@@ -1113,15 +1337,15 @@ class FenetreChoixSujets(QWidget):
                 
                 print(f"DEBUG: Réponse serveur: '{reponse}'")
                 
-                if reponse == "CHOIX_ENREGISTRE":
-                    self.status_label.setText("✅ Choix enregistrés avec succès")
+                if reponse == "PREFERENCES_ENREGISTREES":
+                    self.status_label.setText("✅ Préférences enregistrées avec succès")
                     QMessageBox.information(self, "Succès", 
-                        "Vos choix ont été enregistrés avec succès ! ✅\n\n"
-                        f"{len(sujets_choisis)} sujet(s) sauvegardé(s).")
-                elif reponse == "CHOIX_VIDE":
-                    QMessageBox.warning(self, "Erreur", "Aucun sujet sélectionné.")
-                elif reponse == "CHOIX_INVALIDE":
-                    QMessageBox.warning(self, "Erreur", "Format de sélection invalide.")
+                        "Vos préférences ont été enregistrées avec succès ! ✅\n\n"
+                        f"{len(preferences)} sujet(s) classé(s).")
+                elif reponse == "PREFERENCES_VIDES":
+                    QMessageBox.warning(self, "Erreur", "Aucune préférence n'a été spécifiée.")
+                elif reponse == "PREFERENCES_INVALIDES":
+                    QMessageBox.warning(self, "Erreur", "Format de préférences invalide.")
                 else:
                     QMessageBox.warning(self, "Erreur", 
                         f"Erreur lors de l'enregistrement.\n"
@@ -1175,7 +1399,6 @@ class FenetreChoixSujets(QWidget):
         self.fenetre_suppression = FenetreSuppressionCompte(self.login, self, self.page_connexion)
         self.fenetre_suppression.show()
 
-    
     def retour_connexion(self):
         """Retour à la fenêtre de connexion"""
         self.close()

@@ -6,48 +6,76 @@ DB_PATH = os.path.join("data", "base.sqlite")
 os.makedirs("data", exist_ok=True)
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        
-        # Table utilisateurs (existante)
-        c.execute("""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Table des utilisateurs (stagières)
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nom TEXT NOT NULL,
             prenom TEXT NOT NULL,
             login TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            date_inscription TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            password TEXT NOT NULL
         )
-        """)
-        
-        # Table sujets (NOUVELLE table pour stocker les sujets)
-        c.execute("""
+    ''')
+    
+    # Table des sujets (projets)
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS sujets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             titre TEXT NOT NULL,
             description TEXT,
-            capacite_max INTEGER DEFAULT 3,
-            date_limite TEXT,
+            capacite_max INTEGER DEFAULT 1,
+            date_limite DATE,
             actif BOOLEAN DEFAULT 1,
             date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """)
-        
-        # Table choix des stagiaires (pour plus tard)
-        c.execute("""
+    ''')
+    
+    # Table des choix des utilisateurs - MODIFIÉE POUR INCLURE L'ORDRE DE PRÉFÉRENCE
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS choix_utilisateurs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            sujet_id INTEGER,
-            ordre_preference INTEGER,
+            user_id INTEGER NOT NULL,
+            sujet_id INTEGER NOT NULL,
+            ordre_preference INTEGER NOT NULL,  -- NOUVELLE COLONNE : 1, 2, 3...
             date_choix TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (sujet_id) REFERENCES sujets(id)
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (sujet_id) REFERENCES sujets(id) ON DELETE CASCADE,
+            UNIQUE(user_id, sujet_id)
         )
-        """)
-        
-        # Insérer quelques sujets par défaut
+    ''')
+    
+    # Ajouter la colonne ordre_preference si elle n'existe pas déjà
+    try:
+        cursor.execute("ALTER TABLE choix_utilisateurs ADD COLUMN ordre_preference INTEGER DEFAULT 1")
+        print("✅ Colonne 'ordre_preference' ajoutée à la table choix_utilisateurs")
+    except sqlite3.OperationalError:
+        # La colonne existe déjà, c'est normal
+        pass
+    
+    # Table des résultats d'attribution
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS resultats_attribution (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            sujet_id INTEGER NOT NULL,
+            ordre_preference INTEGER NOT NULL,  -- L'ordre initial choisi par l'utilisateur
+            statut TEXT NOT NULL,  -- 'attribue', 'attente', 'refuse'
+            position_liste_attente INTEGER,  -- Position dans la liste d'attente si statut = 'attente'
+            date_attribution TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (sujet_id) REFERENCES sujets(id) ON DELETE CASCADE,
+            UNIQUE(user_id, sujet_id)
+        )
+    ''')
+    
+    # Insérer des données par défaut si les tables sont vides
+    cursor.execute("SELECT COUNT(*) FROM sujets")
+    count = cursor.fetchone()[0]
+    
+    if count == 0:
         sujets_defaut = [
             ("Projet Réseau", "Déployer une infrastructure réseau complète", 3, "2024-12-31"),
             ("Projet Dev", "Créer une application PyQt avec base de données", 3, "2024-12-31"),
@@ -55,17 +83,32 @@ def init_db():
         ]
         
         for titre, desc, capacite, date_limite in sujets_defaut:
-            c.execute("""
-                INSERT OR IGNORE INTO sujets (titre, description, capacite_max, date_limite)
+            try:
+                cursor.execute("""
+                    INSERT INTO sujets (titre, description, capacite_max, date_limite)
+                    VALUES (?, ?, ?, ?)
+                """, (titre, desc, capacite, date_limite))
+            except sqlite3.IntegrityError:
+                pass
+    
+    # Vérifier et créer un admin par défaut
+    cursor.execute("SELECT COUNT(*) FROM users WHERE login = 'admin'")
+    admin_count = cursor.fetchone()[0]
+    
+    if admin_count == 0:
+        try:
+            cursor.execute("""
+                INSERT INTO users (nom, prenom, login, password)
                 VALUES (?, ?, ?, ?)
-            """, (titre, desc, capacite, date_limite))
-        
-        print(f"✅ Base de données initialisée avec succès (tables: users, sujets, choix_utilisateurs)")
-
-# ============================
-# NOUVEAU : Initialiser la base de données au démarrage
-# ============================
-
+            """, ("Admin", "System", "admin", "admin123"))
+            print("✅ Compte admin créé par défaut")
+        except sqlite3.IntegrityError:
+            pass
+    
+    conn.commit()
+    conn.close()
+    
+    print("✅ Base de données initialisée avec les tables nécessaires")
 
 # ============================
 # FONCTIONS POUR LES SUJETS (ADMIN)
@@ -219,7 +262,7 @@ def get_subjects():
         return c.fetchall()
 
 def enregistrer_choix_sujets(login, sujets_ids):
-    """Enregistre les choix de sujets pour un utilisateur"""
+    """Enregistre les choix de sujets pour un utilisateur (ancienne méthode avec ordre implicite)"""
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -236,7 +279,7 @@ def enregistrer_choix_sujets(login, sujets_ids):
             # Supprimer les anciens choix
             c.execute("DELETE FROM choix_utilisateurs WHERE user_id = ?", (user_id,))
             
-            # Ajouter les nouveaux choix
+            # Ajouter les nouveaux choix avec ordre implicite (1, 2, 3...)
             for ordre, sujet_id in enumerate(sujets_ids, 1):
                 c.execute("""
                     INSERT INTO choix_utilisateurs (user_id, sujet_id, ordre_preference)
@@ -247,6 +290,39 @@ def enregistrer_choix_sujets(login, sujets_ids):
     except Exception as e:
         print(f"Erreur enregistrement choix: {e}")
         return False
+
+def enregistrer_preferences_sujets(login, preferences_dict):
+    """Enregistre les préférences de sujets pour un utilisateur avec ordres spécifiques"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            
+            # Récupérer l'ID de l'utilisateur
+            c.execute("SELECT id FROM users WHERE login = ?", (login,))
+            user_row = c.fetchone()
+            
+            if not user_row:
+                print(f"Utilisateur {login} non trouvé")
+                return False
+                
+            user_id = user_row[0]
+            
+            # Supprimer les anciens choix
+            c.execute("DELETE FROM choix_utilisateurs WHERE user_id = ?", (user_id,))
+            
+            # Ajouter les nouveaux choix avec les ordres spécifiés
+            for sujet_id, ordre in preferences_dict.items():
+                c.execute("""
+                    INSERT INTO choix_utilisateurs (user_id, sujet_id, ordre_preference)
+                    VALUES (?, ?, ?)
+                """, (user_id, sujet_id, ordre))
+            
+            print(f"✅ Préférences enregistrées pour {login}: {preferences_dict}")
+            return True
+    except Exception as e:
+        print(f"❌ Erreur enregistrement préférences: {e}")
+        return False
+
 # ============================
 # FONCTIONS POUR LES RÉSULTATS D'ATTRIBUTION
 # ============================
