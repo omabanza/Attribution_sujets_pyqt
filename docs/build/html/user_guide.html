@@ -1,0 +1,415 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Connexion &#8212; &#34;lumache&#34; &#34;0.1&#34; documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Gestion des sujets" href="admin_guide.html" />
+    <link rel="prev" title="AttributionSujet PyQt - Documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <p># docs/source/user_guide.rst
+Guide Utilisateur
+=================</p>
+<p>Bienvenue dans AttributionSujet PyQt ! Ce guide vous explique comment utiliser
+l’application en tant que stagiaire.</p>
+<blockquote>
+<div><p>Interface Utilisateur</p>
+</div></blockquote>
+<hr class="docutils" />
+<section id="connexion">
+<h1>Connexion<a class="headerlink" href="#connexion" title="Permalink to this heading">¶</a></h1>
+<ol class="arabic simple">
+<li><p>Lancez l’application : <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">Attribution_sujets_pyqt.py</span></code></p></li>
+<li><p>Remplissez les champs :</p>
+<ul class="simple">
+<li><p><strong>Login</strong> : Votre identifiant</p></li>
+<li><p><strong>Mot de passe</strong> : Votre mot de passe</p></li>
+</ul>
+</li>
+<li><p>Cliquez sur <strong>“Se connecter”</strong></p></li>
+</ol>
+<a class="reference internal image-reference" href="_static/login_screen.png"><img alt="Écran de connexion" src="_static/login_screen.png" style="width: 600px;" /></a>
+</section>
+<section id="creation-de-compte">
+<h1>Création de compte<a class="headerlink" href="#creation-de-compte" title="Permalink to this heading">¶</a></h1>
+<p>Si vous n’avez pas de compte :</p>
+<ol class="arabic simple">
+<li><p>Cliquez sur <strong>“Créez-en un →”</strong> en bas de l’écran</p></li>
+<li><p>Remplissez le formulaire :</p>
+<ul class="simple">
+<li><p><strong>Nom</strong> : Votre nom de famille</p></li>
+<li><p><strong>Prénom</strong> : Votre prénom</p></li>
+<li><p><strong>Login</strong> : Choisissez un identifiant unique</p></li>
+<li><p><strong>Mot de passe</strong> : Choisissez un mot de passe sécurisé</p></li>
+</ul>
+</li>
+<li><p>Cliquez sur <strong>“Créer mon compte”</strong></p></li>
+</ol>
+</section>
+<section id="choix-des-sujets">
+<h1>Choix des sujets<a class="headerlink" href="#choix-des-sujets" title="Permalink to this heading">¶</a></h1>
+<p>Une fois connecté, vous verrez la liste des sujets disponibles.</p>
+<p>### Comment classer vos préférences :</p>
+<ol class="arabic simple">
+<li><p><strong>Pour chaque sujet</strong> : Attribuez un numéro dans la colonne “Ordre de préférence”</p>
+<ul class="simple">
+<li><p><strong>1</strong> = Votre premier choix</p></li>
+<li><p><strong>2</strong> = Votre deuxième choix</p></li>
+<li><p>etc.</p></li>
+</ul>
+</li>
+<li><p><strong>Règles importantes</strong> :</p>
+<ul class="simple">
+<li><p>Chaque numéro doit être unique (pas de doublons)</p></li>
+<li><p>Vous pouvez ne pas classer tous les sujets</p></li>
+<li><p>Les sujets non classés (0) ne seront pas pris en compte</p></li>
+</ul>
+</li>
+<li><p><strong>Validation</strong> :</p>
+<ul class="simple">
+<li><p>Cliquez sur <strong>“ Valider mes choix”</strong></p></li>
+<li><p>Confirmez votre sélection</p></li>
+</ul>
+</li>
+</ol>
+<p>### Exemple :</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">Exemple de classement</span><a class="headerlink" href="#id1" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col style="width: 57.1%" />
+<col style="width: 42.9%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Sujet</p></th>
+<th class="head"><p>Ordre</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Projet Réseau</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p>Projet Dev</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-even"><td><p>Cybersécurité</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p>IA &amp; Machine Learning</p></td>
+<td><p>(vide)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="gestion-du-compte">
+<h1>Gestion du compte<a class="headerlink" href="#gestion-du-compte" title="Permalink to this heading">¶</a></h1>
+<p>Cliquez sur le bouton ** VotreLogin** pour accéder au menu :</p>
+<a class="reference internal image-reference" href="_static/user_menu.png"><img alt="Menu utilisateur" src="_static/user_menu.png" style="width: 300px;" /></a>
+<p>Options disponibles :</p>
+<ol class="arabic simple">
+<li><p>** Changer le mot de passe**</p>
+<ul class="simple">
+<li><p>Entrez votre ancien mot de passe</p></li>
+<li><p>Choisissez un nouveau mot de passe</p></li>
+<li><p>Confirmez le nouveau mot de passe</p></li>
+</ul>
+</li>
+<li><p>** Supprimer mon compte**</p>
+<ul class="simple">
+<li><p>Attention : Action irréversible !</p></li>
+<li><p>Toutes vos données seront effacées</p></li>
+<li><p>Demande confirmation par mot de passe</p></li>
+</ul>
+</li>
+<li><p>** Rafraîchir la liste**</p>
+<ul class="simple">
+<li><p>Met à jour la liste des sujets</p></li>
+<li><p>Utile si l’admin a ajouté/modifié des sujets</p></li>
+</ul>
+</li>
+<li><p>**  Déconnexion**</p>
+<ul class="simple">
+<li><p>Retour à l’écran de connexion</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="consultation-des-resultats">
+<h1>Consultation des résultats<a class="headerlink" href="#consultation-des-resultats" title="Permalink to this heading">¶</a></h1>
+<p>### Quand consulter les résultats ?</p>
+<p>Les résultats sont disponibles <strong>après</strong> que l’administrateur a lancé l’algorithme d’attribution.</p>
+<p>### Comment consulter ?</p>
+<ol class="arabic simple">
+<li><p>Cliquez sur le bouton <strong>“Résultats”</strong> dans l’interface principale</p></li>
+<li><p>Ou attendez la notification automatique</p></li>
+</ol>
+<p>### Types de résultats :</p>
+<blockquote>
+<div><p><strong>Sujets attribués</strong> :</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Vous avez obtenu le sujet</p></li>
+<li><p>Inclut l’ordre de préférence</p></li>
+<li><p>Date d’attribution</p></li>
+</ul>
+</div></blockquote>
+<p><strong>Liste d’attente</strong> :</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Position dans la file d’attente</p></li>
+<li><p>Nombre total de places</p></li>
+<li><p>Estimation de vos chances</p></li>
+</ul>
+</div></blockquote>
+<p><strong>Statistiques personnelles</strong> :</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Nombre de choix effectués</p></li>
+<li><p>Taux de réussite</p></li>
+<li><p>Meilleur choix obtenu</p></li>
+<li><p>1er choix obtenu ou non</p></li>
+</ul>
+</div></blockquote>
+</div></blockquote>
+<p>### Exemple de résultats :</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span> VOS RÉSULTATS D&#39;ATTRIBUTION
+
+ SUJETS ATTRIBUÉS (1) :
+• Projet Réseau (Choix #2) - Attribué le 15/12/2024
+
+ LISTE D&#39;ATTENTE (1) :
+• Cybersécurité - Position #3 sur 2 places
+
+ STATISTIQUES :
+• 3 choix effectués
+• 1 sujet attribué (33% de réussite)
+• Meilleur choix : #2
+• 1er choix : Non obtenu
+</pre></div>
+</div>
+<section id="fonctionnalites-avancees">
+<h2>Fonctionnalités avancées<a class="headerlink" href="#fonctionnalites-avancees" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+<section id="rafraichissement-automatique">
+<h1>Rafraîchissement automatique<a class="headerlink" href="#rafraichissement-automatique" title="Permalink to this heading">¶</a></h1>
+<p>L’interface des résultats se rafraîchit automatiquement toutes les <strong>30 secondes</strong>.</p>
+</section>
+<section id="notifications">
+<h1>Notifications<a class="headerlink" href="#notifications" title="Permalink to this heading">¶</a></h1>
+<ul class="simple">
+<li><p>Changement de position dans les listes d’attente</p></li>
+<li><p>Nouvelle attribution si votre position devient #1</p></li>
+<li><p>Messages d’erreur en cas de problème</p></li>
+</ul>
+</section>
+<section id="export-des-resultats">
+<h1>Export des résultats<a class="headerlink" href="#export-des-resultats" title="Permalink to this heading">¶</a></h1>
+<p>Vous pouvez :
+1. Prendre une capture d’écran
+2. Copier le texte des résultats
+3. Imprimer la page (Ctrl+P)</p>
+<blockquote>
+<div><p>Dépannage</p>
+</div></blockquote>
+<hr class="docutils" />
+<p>Problèmes courants :</p>
+<p>### “Serveur non disponible”</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Vérifiez que le serveur est démarré : <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">serveur_tcp_sqlite.py</span></code></p></li>
+<li><p>Vérifiez votre connexion réseau</p></li>
+<li><p>Contactez l’administrateur</p></li>
+</ul>
+</div></blockquote>
+<p>### “Identifiants incorrects”</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Vérifiez votre login/mot de passe</p></li>
+<li><p>Essayez de changer votre mot de passe</p></li>
+<li><p>Contactez l’administrateur pour réinitialisation</p></li>
+</ul>
+</div></blockquote>
+<p>### “Aucun sujet disponible”</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>L’administrateur n’a pas encore ajouté de sujets</p></li>
+<li><p>Les sujets peuvent être désactivés</p></li>
+<li><p>Attendez que l’admin ajoute des sujets</p></li>
+</ul>
+</div></blockquote>
+<p>### “Doublons détectés”</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Vous avez attribué le même numéro à plusieurs sujets</p></li>
+<li><p>Corrigez les numéros pour qu’ils soient uniques</p></li>
+<li><p>Réinitialisez et recommencez</p></li>
+</ul>
+</div></blockquote>
+<p>### “Résultats non disponibles”</p>
+<blockquote>
+<div><blockquote>
+<div><ul class="simple">
+<li><p>L’attribution n’a pas encore été lancée</p></li>
+<li><p>L’algorithme est en cours d’exécution</p></li>
+<li><p>Attendez l’annonce de l’administrateur</p></li>
+</ul>
+</div></blockquote>
+<p>Support</p>
+</div></blockquote>
+<hr class="docutils" />
+<p>En cas de problème :</p>
+<ol class="arabic simple">
+<li><p><strong>Consultez ce guide</strong> pour les solutions courantes</p></li>
+<li><p><strong>Contactez votre administrateur</strong> pour les problèmes techniques</p></li>
+<li><p><strong>Signalez les bugs</strong> via le système de votre organisation</p></li>
+</ol>
+<blockquote>
+<div><p>Bonnes pratiques</p>
+</div></blockquote>
+<hr class="docutils" />
+<p>Pour maximiser vos chances :</p>
+<ol class="arabic simple">
+<li><p><strong>Faites plusieurs choix</strong> (au moins 3)</p></li>
+<li><p><strong>Variez vos préférences</strong> (ne mettez pas que des sujets populaires en premier)</p></li>
+<li><p><strong>Consultez régulièrement</strong> les résultats</p></li>
+<li><p><strong>Gardez vos informations</strong> à jour</p></li>
+<li><p><strong>Choisissez un mot de passe sécurisé</strong></p></li>
+</ol>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">"lumache"</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Guide Utilisateur</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Connexion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#creation-de-compte">Création de compte</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#choix-des-sujets">Choix des sujets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#gestion-du-compte">Gestion du compte</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#consultation-des-resultats">Consultation des résultats</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#fonctionnalites-avancees">Fonctionnalités avancées</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#rafraichissement-automatique">Rafraîchissement automatique</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#notifications">Notifications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#export-des-resultats">Export des résultats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html">Gestion des sujets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#gestion-des-utilisateurs">Gestion des utilisateurs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#configuration-du-systeme">Configuration du système</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#algorithme-d-attribution">Algorithme d’attribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#statistiques">Statistiques</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#export-des-donnees">Export des données</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#maintenance">Maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#depannage">Dépannage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#securite">Sécurité</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#api-d-administration">API d’administration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#scripts-utiles">Scripts utiles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#support-technique">Support technique</a></li>
+<li class="toctree-l1"><a class="reference internal" href="algorithm.html">Données d’entrée</a></li>
+<li class="toctree-l1"><a class="reference internal" href="algorithm.html#utilisation-avancee">Utilisation avancée</a></li>
+<li class="toctree-l1"><a class="reference internal" href="algorithm.html#developpement">🛠️ Développement</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation Technique</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Module admin_interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-algorithme-attribution">Module Algorithme_attribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-attribution-sujets-pyqt">Module Attribution_sujets_pyqt</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-module-attribution-sujets-pyqt">Module module_Attribution_sujets_pyqt</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-serveur-tcp-sqlite">Module serveur_tcp_sqlite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-resultats-interface">Module resultats_interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Administrateur</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#api-client-stagiaire">API Client (Stagiaire)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#api-algorithme">API Algorithme</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#api-base-de-donnees">API Base de données</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">AttributionSujet PyQt - Documentation</a></li>
+      <li>Next: <a href="admin_guide.html" title="next chapter">Gestion des sujets</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2025, "Graziellla".
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/user_guide.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

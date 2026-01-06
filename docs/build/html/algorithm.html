@@ -1,0 +1,501 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Données d’entrée &#8212; &#34;lumache&#34; &#34;0.1&#34; documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Module admin_interface" href="modules.html" />
+    <link rel="prev" title="Gestion des sujets" href="admin_guide.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <p># docs/source/algorithm.rst
+Algorithme d’Attribution
+========================</p>
+<p>Cette section décrit en détail l’algorithme d’attribution utilisé dans le système.</p>
+<blockquote>
+<div><p>Présentation générale</p>
+</div></blockquote>
+<hr class="docutils" />
+<p><strong>Algorithme d’attribution en cascade</strong> avec tirage au sort pour les égalités.</p>
+<p>Objectifs :
+1. <strong>Maximiser</strong> le nombre de stagiaires ayant un sujet
+2. <strong>Respecter</strong> les préférences dans la mesure du possible
+3. <strong>Gérer</strong> les surcapacités équitablement
+4. <strong>Créer</strong> des listes d’attente transparentes</p>
+<section id="donnees-d-entree">
+<h1>Données d’entrée<a class="headerlink" href="#donnees-d-entree" title="Permalink to this heading">¶</a></h1>
+<p>### 1. Sujets disponibles</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sujets</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;titre&#39;</span><span class="p">:</span> <span class="s1">&#39;Projet Réseau&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;capacite&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>      <span class="c1"># Nombre maximum de stagiaires</span>
+        <span class="s1">&#39;actif&#39;</span><span class="p">:</span> <span class="kc">True</span>
+    <span class="p">},</span>
+    <span class="c1"># ...</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>### 2. Choix des utilisateurs</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">choix</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s1">&#39;user_id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;sujet_id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;ordre&#39;</span><span class="p">:</span> <span class="mi">1</span>          <span class="c1"># 1 = premier choix</span>
+    <span class="p">},</span>
+    <span class="c1"># ...</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>### 3. Règles de validation</p>
+<ul class="simple">
+<li><p><strong>Date limite</strong> : Seuls les sujets dont la date limite est passée sont éligibles</p></li>
+<li><p><strong>Activation</strong> : Seuls les sujets actifs sont considérés</p></li>
+<li><p><strong>Choix uniques</strong> : Un utilisateur ne peut pas choisir le même sujet plusieurs fois</p></li>
+</ul>
+<blockquote>
+<div><p>Algorithme détaillé</p>
+</div></blockquote>
+<hr class="docutils" />
+<section id="phase-1-attribution-des-premiers-choix">
+<h2>Phase 1 : Attribution des premiers choix<a class="headerlink" href="#phase-1-attribution-des-premiers-choix" title="Permalink to this heading">¶</a></h2>
+<p>### Étape 1.1 : Préparation</p>
+<ol class="arabic simple">
+<li><p><strong>Trier les utilisateurs</strong> par nombre de choix (priorité à ceux qui ont fait plus de choix)</p></li>
+<li><p><strong>Pour chaque utilisateur</strong>, prendre son premier choix</p></li>
+</ol>
+<p>### Étape 1.2 : Attribution</p>
+<p>Pour chaque premier choix :</p>
+<ol class="arabic simple">
+<li><p><strong>Vérifier la capacité</strong> du sujet :</p>
+<ul class="simple">
+<li><p>Si <strong>capacité disponible</strong> → Attribuer</p></li>
+<li><p>Si <strong>capacité dépassée</strong> → Tirage au sort</p></li>
+</ul>
+</li>
+<li><p><strong>Tirage au sort</strong> (en cas de surcapacité) :</p>
+<ul class="simple">
+<li><p>Mélanger aléatoirement tous les candidats</p></li>
+<li><p>Garder les N premiers (N = capacité)</p></li>
+<li><p>Mettre les autres en liste d’attente</p></li>
+</ul>
+</li>
+</ol>
+<p>### Étape 1.3 : Liste d’attente</p>
+<p>Les utilisateurs non retenus lors du tirage au sort :
+* Sont placés en <strong>liste d’attente</strong> pour ce sujet
+* Avec une <strong>position</strong> (1 = premier en attente)</p>
+</section>
+<section id="phase-2-cascade-vers-les-choix-suivants">
+<h2>Phase 2 : Cascade vers les choix suivants<a class="headerlink" href="#phase-2-cascade-vers-les-choix-suivants" title="Permalink to this heading">¶</a></h2>
+<p>### Étape 2.1 : Identification</p>
+<p>Identifier les utilisateurs <strong>sans attribution</strong> après la phase 1.</p>
+<p>### Étape 2.2 : Parcours des choix</p>
+<p>Pour chaque utilisateur sans attribution :</p>
+<ol class="arabic simple">
+<li><p><strong>Parcourir ses choix</strong> dans l’ordre (2ème, 3ème, etc.)</p></li>
+<li><p>Pour chaque choix :</p>
+<ul class="simple">
+<li><p>Vérifier si le sujet a de la <strong>capacité disponible</strong></p></li>
+<li><p>Si oui → Attribuer et arrêter</p></li>
+<li><p>Si non → Passer au choix suivant</p></li>
+</ul>
+</li>
+<li><p>Si tous les choix sont épuisés → L’utilisateur reste sans attribution</p></li>
+</ol>
+<p>### Étape 2.3 : Fin de cascade</p>
+<p>L’algorithme s’arrête quand :
+* Tous les utilisateurs ont un sujet
+* OU tous les choix ont été examinés</p>
+<blockquote>
+<div><p>Sauvegarde des résultats</p>
+</div></blockquote>
+<hr class="docutils" />
+<p>### Structure des résultats</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">resultats</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="p">{</span>  <span class="c1"># ID sujet</span>
+        <span class="s1">&#39;titre&#39;</span><span class="p">:</span> <span class="s1">&#39;Projet Réseau&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;capacite&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s1">&#39;attribues&#39;</span><span class="p">:</span> <span class="p">[</span>  <span class="c1"># Liste des attributions</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;user_id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Dupont&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;prenom&#39;</span><span class="p">:</span> <span class="s1">&#39;Jean&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;ordre_preference&#39;</span><span class="p">:</span> <span class="mi">1</span>
+            <span class="p">}</span>
+        <span class="p">],</span>
+        <span class="s1">&#39;liste_attente&#39;</span><span class="p">:</span> <span class="p">[</span>  <span class="c1"># Liste d&#39;attente</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;user_id&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Martin&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;prenom&#39;</span><span class="p">:</span> <span class="s1">&#39;Luc&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;ordre_preference&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;position&#39;</span><span class="p">:</span> <span class="mi">1</span>
+            <span class="p">}</span>
+        <span class="p">]</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>### Tables de la base</p>
+<hr class="docutils" />
+<p>### 1. Métriques globales</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;nb_attributions&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>           <span class="c1"># Nombre total d&#39;attributions</span>
+    <span class="s1">&#39;nb_en_attente&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>             <span class="c1"># Nombre en liste d&#39;attente</span>
+    <span class="s1">&#39;nb_utilisateurs_traites&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>   <span class="c1"># Utilisateurs avec résultat</span>
+    <span class="s1">&#39;nb_total_utilisateurs&#39;</span><span class="p">:</span> <span class="mi">35</span><span class="p">,</span>     <span class="c1"># Total des utilisateurs</span>
+    <span class="s1">&#39;taux_satisfaction&#39;</span><span class="p">:</span> <span class="s1">&#39;73.3%&#39;</span>     <span class="c1"># % de 1ers choix obtenus</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>### 2. Métriques par sujet</p>
+<p>Pour chaque sujet :
+* <strong>Nombre de choix</strong> reçus
+* <strong>Nombre d’attributions</strong> effectuées
+* <strong>Taux de remplissage</strong> (attribués / capacité)
+* <strong>Taille de la liste d’attente</strong></p>
+<p>### 3. Métriques par utilisateur</p>
+<p>Pour chaque utilisateur :
+* <strong>Nombre de choix</strong> effectués
+* <strong>Ordre du choix obtenu</strong> (1 = premier choix)
+* <strong>Statut</strong> (attribué/en attente/sans attribution)
+* <strong>Position</strong> dans les listes d’attente</p>
+<blockquote>
+<div><p>Analyse de l’algorithme</p>
+</div></blockquote>
+<hr class="docutils" />
+<p>### Complexité</p>
+<ul class="simple">
+<li><p><strong>Temps</strong> : O(U × C) où U = nombre d’utilisateurs, C = nombre de choix moyen</p></li>
+<li><p><strong>Mémoire</strong> : O(S + U) où S = nombre de sujets</p></li>
+</ul>
+<p>### Équité</p>
+<p>L’algorithme garantit :</p>
+<ol class="arabic simple">
+<li><p><strong>Transparence</strong> : Les règles sont claires et documentées</p></li>
+<li><p><strong>Équité</strong> : Tirage au sort pour les égalités</p></li>
+<li><p><strong>Non-discrimination</strong> : Basé uniquement sur les préférences</p></li>
+</ol>
+<p>### Limitations</p>
+<ol class="arabic simple">
+<li><p><strong>Date limite</strong> : Nécessite qu’au moins un sujet ait sa date passée</p></li>
+<li><p><strong>Capacités fixes</strong> : Ne gère pas l’ajustement dynamique des capacités</p></li>
+<li><p><strong>Choix limités</strong> : Un utilisateur ne peut choisir que N sujets</p></li>
+</ol>
+<blockquote>
+<div><p>Améliorations possibles</p>
+</div></blockquote>
+<hr class="docutils" />
+<p>### 1. Algorithme optimisé</p>
+<p>Implémenter l’<strong>algorithme hôpital-résident</strong> (Gale-Shapley) pour :</p>
+<ul class="simple">
+<li><p><strong>Stabilité</strong> : Aucun utilisateur ne préfère un autre sujet attribué</p></li>
+<li><p><strong>Optimum</strong> : Maximise le nombre de préférences satisfaites</p></li>
+</ul>
+<p>### 2. Capacités dynamiques</p>
+<p>Permettre aux administrateurs de :
+* <strong>Ajuster les capacités</strong> après les choix
+* <strong>Créer des groupes</strong> supplémentaires si forte demande</p>
+<p>### 3. Contraintes supplémentaires</p>
+<p>Ajouter des contraintes comme :
+* <strong>Parité</strong> homme/femme dans les groupes
+* <strong>Niveaux</strong> mélangés (débutants/avancés)
+* <strong>Compétences</strong> spécifiques requises</p>
+<blockquote>
+<div><p>Tests et validation</p>
+</div></blockquote>
+<hr class="docutils" />
+<p>### Scénarios de test</p>
+<ol class="arabic simple">
+<li><p><strong>Cas simple</strong> : Plus de places que de demandes</p></li>
+<li><p><strong>Surcapacité</strong> : Plus de demandes que de places</p></li>
+<li><p><strong>Choix multiples</strong> : Utilisateurs avec plusieurs préférences</p></li>
+<li><p><strong>Dates limites</strong> : Mix de sujets éligibles et non éligibles</p></li>
+</ol>
+<p>### Validation</p>
+<p>Pour valider l’algorithme :</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>  <span class="k">def</span> <span class="nf">test_algorithme</span><span class="p">():</span>
+      <span class="c1"># 1. Préparer les données de test</span>
+      <span class="c1"># 2. Exécuter l&#39;algorithme</span>
+      <span class="c1"># 3. Vérifier les invariants :</span>
+      <span class="c1">#    - Aucun sujet ne dépasse sa capacité</span>
+      <span class="c1">#    - Aucun utilisateur n&#39;a plusieurs sujets</span>
+      <span class="c1">#    - Les listes d&#39;attente sont cohérentes</span>
+      <span class="c1"># 4. Calculer les métriques</span>
+      <span class="k">pass</span>
+
+<span class="n">Exemple</span> <span class="n">complet</span>
+</pre></div>
+</div>
+<hr class="docutils" />
+<p>### Données d’entrée</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sujets</span>
+<span class="n">sujets</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;titre&#39;</span><span class="p">:</span> <span class="s1">&#39;Réseau&#39;</span><span class="p">,</span> <span class="s1">&#39;capacite&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;titre&#39;</span><span class="p">:</span> <span class="s1">&#39;Dev&#39;</span><span class="p">,</span> <span class="s1">&#39;capacite&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+<span class="p">]</span>
+
+<span class="c1"># Utilisateurs et choix</span>
+<span class="n">utilisateurs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Dupont&#39;</span><span class="p">,</span> <span class="s1">&#39;choix&#39;</span><span class="p">:</span> <span class="p">[{</span><span class="s1">&#39;sujet_id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;ordre&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}]},</span>
+    <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Martin&#39;</span><span class="p">,</span> <span class="s1">&#39;choix&#39;</span><span class="p">:</span> <span class="p">[{</span><span class="s1">&#39;sujet_id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;ordre&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}]},</span>
+    <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Durand&#39;</span><span class="p">,</span> <span class="s1">&#39;choix&#39;</span><span class="p">:</span> <span class="p">[{</span><span class="s1">&#39;sujet_id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;ordre&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}]},</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>### Exécution</p>
+<p><strong>Phase 1</strong> :
+* Dupont → Réseau (attribué)
+* Martin → Réseau (attribué)
+* Durand → Réseau (capacité dépassée → tirage au sort)</p>
+<p><strong>Tirage au sort</strong> :
+* Position aléatoire : [Durand, Martin, Dupont]
+* Garde les 2 premiers : Durand, Martin
+* Liste d’attente : Dupont (position 1)</p>
+<p><strong>Phase 2</strong> :
+* Dupont (sans attribution) → Pas d’autre choix → reste en attente</p>
+<p>### Résultats</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">resultats</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;titre&#39;</span><span class="p">:</span> <span class="s1">&#39;Réseau&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;attribues&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span><span class="s1">&#39;user_id&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Durand&#39;</span><span class="p">,</span> <span class="s1">&#39;ordre&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;user_id&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Martin&#39;</span><span class="p">,</span> <span class="s1">&#39;ordre&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+        <span class="p">],</span>
+        <span class="s1">&#39;liste_attente&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span><span class="s1">&#39;user_id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;nom&#39;</span><span class="p">:</span> <span class="s1">&#39;Dupont&#39;</span><span class="p">,</span> <span class="s1">&#39;ordre&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+        <span class="p">]</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="utilisation-avancee">
+<h1>Utilisation avancée<a class="headerlink" href="#utilisation-avancee" title="Permalink to this heading">¶</a></h1>
+<p>### API Python</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">Algorithme_attribution</span> <span class="kn">import</span> <span class="n">AlgorithmeAttribution</span>
+
+<span class="c1"># 1. Initialisation</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">AlgorithmeAttribution</span><span class="p">()</span>
+
+<span class="c1"># 2. Récupération des données</span>
+<span class="n">choix</span> <span class="o">=</span> <span class="n">algo</span><span class="o">.</span><span class="n">get_choix_utilisateurs</span><span class="p">()</span>
+<span class="n">sujets</span> <span class="o">=</span> <span class="n">algo</span><span class="o">.</span><span class="n">get_sujets_disponibles</span><span class="p">()</span>
+
+<span class="c1"># 3. Exécution</span>
+<span class="n">resultats</span> <span class="o">=</span> <span class="n">algo</span><span class="o">.</span><span class="n">attribution_cascade</span><span class="p">()</span>
+
+<span class="c1"># 4. Statistiques</span>
+<span class="n">stats</span> <span class="o">=</span> <span class="n">algo</span><span class="o">.</span><span class="n">get_statistiques</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>### Personnalisation</p>
+<p>Pour adapter l’algorithme :</p>
+<ol class="arabic simple">
+<li><p><strong>Modifier la priorité</strong> : Changer l’ordre de traitement des utilisateurs</p></li>
+<li><p><strong>Ajouter des contraintes</strong> : Implémenter des règles métier supplémentaires</p></li>
+<li><p><strong>Changer le tirage au sort</strong> : Utiliser une autre méthode d’égalité</p></li>
+</ol>
+<p>### Logs et débogage</p>
+<p>L’algorithme produit des logs détaillés :</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>  === PHASE 1: Attribution des premiers choix ===
+  Jean Dupont → Projet Réseau (1er choix)
+   Capacité dépassée pour Projet Dev
+   Luc Martin → Liste d&#39;attente pour Projet Dev
+
+Références
+</pre></div>
+</div>
+<hr class="docutils" />
+<p>### Algorithmes similaires</p>
+<ol class="arabic simple">
+<li><p><strong>Gale-Shapley</strong> (1962) : Algorithme des mariages stables</p></li>
+<li><p><strong>Boston Mechanism</strong> : Utilisé pour les affectations scolaires</p></li>
+<li><p><strong>DA Algorithm</strong> : Algorithme d’admission différée</p></li>
+</ol>
+<p>### Lectures recommandées</p>
+<ul class="simple">
+<li><p>“Two-Sided Matching: A Study in Game-Theoretic Modeling and Analysis” - Roth &amp; Sotomayor</p></li>
+<li><p>“School Choice: A Mechanism Design Approach” - Abdulkadiroğlu &amp; Sönmez</p></li>
+</ul>
+<p>### Code source</p>
+<ul class="simple">
+<li><p><strong>Fichier principal</strong> : <code class="docutils literal notranslate"><span class="pre">Algorithme_attribution.py</span></code></p></li>
+<li><p><strong>Fonction principale</strong> : <code class="docutils literal notranslate"><span class="pre">lancer_attribution()</span></code></p></li>
+<li><p><strong>Classe principale</strong> : <code class="docutils literal notranslate"><span class="pre">AlgorithmeAttribution</span></code></p></li>
+</ul>
+</section>
+<section id="developpement">
+<h1>🛠️ Développement<a class="headerlink" href="#developpement" title="Permalink to this heading">¶</a></h1>
+<p>### Structure du code</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">AlgorithmeAttribution</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+    <span class="k">def</span> <span class="nf">get_choix_utilisateurs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+    <span class="k">def</span> <span class="nf">get_sujets_disponibles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+    <span class="k">def</span> <span class="nf">attribution_cascade</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+    <span class="k">def</span> <span class="nf">sauvegarder_resultats</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+    <span class="k">def</span> <span class="nf">get_statistiques</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>### Tests unitaires</p>
+<p>Pour ajouter des tests :</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="k">class</span> <span class="nc">TestAlgorithme</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_attribution_simple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Test avec données simples</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">test_surcapacite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Test avec plus de demandes que de places</span>
+        <span class="k">pass</span>
+</pre></div>
+</div>
+<p>### Contribution</p>
+<p>Pour contribuer à l’algorithme :</p>
+<ol class="arabic simple">
+<li><p><strong>Forkez</strong> le dépôt</p></li>
+<li><p><strong>Créez une branche</strong> pour votre amélioration</p></li>
+<li><p><strong>Écrivez des tests</strong></p></li>
+<li><p><strong>Soumettez une Pull Request</strong></p></li>
+</ol>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">"lumache"</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Guide Utilisateur</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html">Connexion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html#creation-de-compte">Création de compte</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html#choix-des-sujets">Choix des sujets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html#gestion-du-compte">Gestion du compte</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html#consultation-des-resultats">Consultation des résultats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html#rafraichissement-automatique">Rafraîchissement automatique</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html#notifications">Notifications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user_guide.html#export-des-resultats">Export des résultats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html">Gestion des sujets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#gestion-des-utilisateurs">Gestion des utilisateurs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#configuration-du-systeme">Configuration du système</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#algorithme-d-attribution">Algorithme d’attribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#statistiques">Statistiques</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#export-des-donnees">Export des données</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#maintenance">Maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#depannage">Dépannage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#securite">Sécurité</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#api-d-administration">API d’administration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#scripts-utiles">Scripts utiles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_guide.html#support-technique">Support technique</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Données d’entrée</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#phase-1-attribution-des-premiers-choix">Phase 1 : Attribution des premiers choix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-2-cascade-vers-les-choix-suivants">Phase 2 : Cascade vers les choix suivants</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#utilisation-avancee">Utilisation avancée</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#developpement">🛠️ Développement</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation Technique</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Module admin_interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-algorithme-attribution">Module Algorithme_attribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-attribution-sujets-pyqt">Module Attribution_sujets_pyqt</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-module-attribution-sujets-pyqt">Module module_Attribution_sujets_pyqt</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-serveur-tcp-sqlite">Module serveur_tcp_sqlite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#module-resultats-interface">Module resultats_interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Administrateur</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#api-client-stagiaire">API Client (Stagiaire)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#api-algorithme">API Algorithme</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#api-base-de-donnees">API Base de données</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="admin_guide.html" title="previous chapter">Gestion des sujets</a></li>
+      <li>Next: <a href="modules.html" title="next chapter">Module admin_interface</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2025, "Graziellla".
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/algorithm.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
