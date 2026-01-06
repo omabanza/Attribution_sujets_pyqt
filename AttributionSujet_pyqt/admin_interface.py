@@ -1,3 +1,14 @@
+"""
+Panneau d'administration pour le système d'attribution de sujets.
+
+Ce module implémente l'interface graphique d'administration permettant la gestion
+des sujets, des utilisateurs, et l'exécution de l'algorithme d'attribution.
+L'interface communique avec un serveur via socket TCP pour toutes les opérations.
+
+Classes:
+    AdminPanel : Fenêtre principale d'administration avec onglets multiples.
+"""
+
 import sys
 import socket
 import ast
@@ -10,11 +21,36 @@ from PyQt5.QtWidgets import QProgressDialog
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 55555
 
+
 # ============================
 # Panneau d'administration principal
 # ============================
 class AdminPanel(QMainWindow):
+    """
+    Panneau principal d'administration avec interface à onglets.
+    
+    Cette classe représente la fenêtre principale de l'application d'administration.
+    Elle inclut la gestion des sujets, des utilisateurs, la configuration système,
+    les statistiques et l'algorithme d'attribution.
+    
+    Attributes:
+        tab_widget (QTabWidget): Widget à onglets contenant toutes les sections
+        table_sujets (QTableWidget): Tableau affichant la liste des sujets
+        table_utilisateurs (QTableWidget): Tableau affichant la liste des utilisateurs
+        text_stats (QTextEdit): Zone d'affichage des statistiques
+        text_logs (QTextEdit): Zone d'affichage des logs d'algorithme
+        stats_widget (QTextEdit): Widget des statistiques avancées
+        spin_nb_choix (QSpinBox): Contrôle pour le nombre de choix maximum
+        check_actif (QCheckBox): Case à cocher pour l'état du système
+    """
+    
     def __init__(self):
+        """
+        Initialise la fenêtre d'administration avec tous ses composants.
+        
+        La méthode configure l'interface graphique, crée le menu, initialise
+        les onglets et charge les données depuis le serveur.
+        """
         super().__init__()
         self.setWindowTitle("Panneau d'Administration - Attribution des Sujets")
         self.showMaximized()
@@ -94,6 +130,13 @@ class AdminPanel(QMainWindow):
         self.actualiser_statistiques()
     
     def create_menu(self):
+        """
+        Crée la barre de menu principale.
+        
+        Cette méthode configure le menu Fichier avec les options d'actualisation
+        et de déconnexion, ainsi que le menu Attribution pour lancer l'algorithme
+        et le menu Aide pour les informations sur l'application.
+        """
         menubar = self.menuBar()
         menubar.setStyleSheet("""
             QMenuBar {
@@ -134,6 +177,12 @@ class AdminPanel(QMainWindow):
         action_apropos.triggered.connect(self.afficher_a_propos)
     
     def init_tab_gestion_sujets(self):
+        """
+        Initialise l'onglet de gestion des sujets.
+        
+        Crée l'interface avec un tableau des sujets et des boutons pour
+        ajouter, modifier, supprimer et lancer l'attribution.
+        """
         layout = QVBoxLayout()
         
         # En-tête avec boutons
@@ -248,6 +297,12 @@ class AdminPanel(QMainWindow):
         self.tab_gestion_sujets.setLayout(layout)
     
     def init_tab_gestion_utilisateurs(self):
+        """
+        Initialise l'onglet de gestion des utilisateurs.
+        
+        Crée un tableau affichant les utilisateurs avec leurs informations
+        et le nombre de choix effectués.
+        """
         layout = QVBoxLayout()
         
         # En-tête avec boutons
@@ -310,6 +365,12 @@ class AdminPanel(QMainWindow):
         self.tab_gestion_utilisateurs.setLayout(layout)
     
     def init_tab_configuration(self):
+        """
+        Initialise l'onglet de configuration du système.
+        
+        Permet de configurer le nombre maximum de choix par personne
+        et d'activer/désactiver le système.
+        """
         layout = QVBoxLayout()
         layout.setSpacing(25)
         layout.setContentsMargins(40, 40, 40, 40)
@@ -398,6 +459,12 @@ class AdminPanel(QMainWindow):
         self.tab_configuration.setLayout(layout)
     
     def init_tab_statistiques(self):
+        """
+        Initialise l'onglet de statistiques.
+        
+        Affiche les statistiques en temps réel sur les sujets, utilisateurs
+        et choix effectués.
+        """
         layout = QVBoxLayout()
         
         # En-tête
@@ -442,11 +509,13 @@ class AdminPanel(QMainWindow):
         
         self.tab_statistiques.setLayout(layout)
 
-    # ============================
-    # NOUVEAU : Onglet Algorithme d'Attribution
-    # ============================
     def init_tab_algorithme(self):
-        """Initialise l'onglet de visualisation de l'algorithme"""
+        """
+        Initialise l'onglet de visualisation de l'algorithme.
+        
+        Cette section permet de lancer l'algorithme d'attribution et d'afficher
+        les logs d'exécution étape par étape ainsi que des statistiques avancées.
+        """
         layout = QVBoxLayout()
         
         # Titre et boutons
@@ -514,7 +583,19 @@ class AdminPanel(QMainWindow):
     # ============================
     
     def envoyer_requete(self, message, timeout=30):
-        """Envoie une requête au serveur et retourne la réponse"""
+        """
+        Envoie une requête au serveur et retourne la réponse.
+        
+        Args:
+            message (str): Message à envoyer au serveur
+            timeout (int, optional): Timeout en secondes. Defaults to 30.
+            
+        Returns:
+            str or None: Réponse du serveur ou None en cas d'erreur
+            
+        Note:
+            Cette méthode crée une nouvelle connexion socket pour chaque requête.
+        """
         try:
             client = socket.socket()
             client.settimeout(timeout)  # Timeout augmenté pour l'attribution
@@ -531,7 +612,12 @@ class AdminPanel(QMainWindow):
             return None
         
     def load_sujets(self):
-        """Charge la liste des sujets depuis le serveur"""
+        """
+        Charge la liste des sujets depuis le serveur.
+        
+        Récupère les sujets via une requête GET_ALL_SUBJECTS et les affiche
+        dans le tableau table_sujets. Les sujets sont colorés selon leur état.
+        """
         try:
             reponse = self.envoyer_requete("GET_ALL_SUBJECTS")
             if not reponse:
@@ -571,7 +657,13 @@ class AdminPanel(QMainWindow):
             QMessageBox.critical(self, "Erreur", f"Impossible de charger les sujets: {e}")
     
     def load_utilisateurs(self):
-        """Charge la liste des utilisateurs depuis le serveur - SANS Date Inscription"""
+        """
+        Charge la liste des utilisateurs depuis le serveur.
+        
+        Récupère les utilisateurs via une requête GET_ALL_USERS et les affiche
+        dans le tableau table_utilisateurs. Le nombre de choix est coloré
+        pour une visualisation rapide.
+        """
         try:
             reponse = self.envoyer_requete("GET_ALL_USERS")
             if not reponse:
@@ -640,7 +732,12 @@ class AdminPanel(QMainWindow):
             QMessageBox.critical(self, "Erreur", f"Impossible de charger les utilisateurs: {e}")
     
     def ajouter_sujet(self):
-        """Ouvre une fenêtre pour ajouter un sujet"""
+        """
+        Ouvre une fenêtre pour ajouter un nouveau sujet.
+        
+        Affiche un formulaire de saisie pour créer un nouveau sujet
+        et l'envoie au serveur via une requête ADD_SUBJECT.
+        """
         dialog = QDialog(self)
         dialog.setWindowTitle("➕ Ajouter un nouveau sujet")
         dialog.setFixedSize(500, 450)
@@ -724,7 +821,12 @@ class AdminPanel(QMainWindow):
         dialog.exec_()
     
     def modifier_sujet(self):
-        """Modifie le sujet sélectionné"""
+        """
+        Modifie le sujet sélectionné.
+        
+        Ouvre un formulaire pré-rempli avec les informations du sujet sélectionné
+        et permet de les modifier. Envoie les modifications au serveur.
+        """
         selected_row = self.table_sujets.currentRow()
         if selected_row < 0:
             QMessageBox.warning(self, "Attention", "Veuillez sélectionner un sujet à modifier.")
@@ -834,7 +936,12 @@ class AdminPanel(QMainWindow):
         dialog.exec_()
     
     def supprimer_sujet(self):
-        """Supprime le sujet sélectionné"""
+        """
+        Supprime le sujet sélectionné.
+        
+        Demande confirmation avant de supprimer un sujet via une requête
+        DELETE_SUBJECT au serveur.
+        """
         selected_row = self.table_sujets.currentRow()
         if selected_row < 0:
             QMessageBox.warning(self, "Attention", "Veuillez sélectionner un sujet à supprimer.")
@@ -864,13 +971,23 @@ class AdminPanel(QMainWindow):
                 QMessageBox.warning(self, "Erreur", f"Échec de la suppression: {reponse_serveur}")
     
     def load_config(self):
-        """Charge la configuration actuelle"""
+        """
+        Charge la configuration actuelle du système.
+        
+        Pour l'instant, cette méthode définit des valeurs par défaut.
+        À terme, elle devrait récupérer la configuration depuis le serveur.
+        """
         # Pour l'instant, valeurs par défaut
         self.spin_nb_choix.setValue(3)
         self.check_actif.setChecked(True)
     
     def sauvegarder_config(self):
-        """Sauvegarde la configuration"""
+        """
+        Sauvegarde la configuration dans le système.
+        
+        Cette méthode devrait envoyer la configuration au serveur.
+        Actuellement, elle affiche seulement un message de confirmation.
+        """
         nb_choix = self.spin_nb_choix.value()
         actif = self.check_actif.isChecked()
         
@@ -881,7 +998,14 @@ class AdminPanel(QMainWindow):
             f"• Système actif: {'Oui' if actif else 'Non'}")
     
     def actualiser_statistiques(self):
-        """Actualise les statistiques"""
+        """
+        Actualise les statistiques affichées.
+        
+        Calcule et affiche les statistiques en temps réel :
+        - Nombre total d'utilisateurs et de sujets
+        - Total des choix effectués
+        - Choix moyens par utilisateur
+        """
         try:
             # Récupérer les données
             sujets = self.table_sujets.rowCount()
@@ -955,9 +1079,21 @@ class AdminPanel(QMainWindow):
     
     # ============================
     # NOUVEAU : Fonctions pour l'algorithme d'attribution
-    # ============================S
+    # ============================
+    
     def lancer_attribution(self):
-        """Lance l'algorithme d'attribution"""
+        """
+        Lance l'algorithme d'attribution des sujets.
+        
+        Cette méthode :
+        1. Vérifie la présence de sujets et d'utilisateurs
+        2. Demande confirmation à l'administrateur
+        3. Envoie une requête RUN_ATTRIBUTION au serveur
+        4. Affiche le résultat de l'opération
+        
+        Note:
+            L'algorithme réel est exécuté côté serveur.
+        """
         # Vérifier s'il y a des sujets
         if self.table_sujets.rowCount() == 0:
             QMessageBox.warning(self, "Erreur", "Aucun sujet disponible pour l'attribution.")
@@ -1037,8 +1173,16 @@ class AdminPanel(QMainWindow):
                     "Erreur",
                     f"Erreur lors du lancement de l'attribution :\n{str(e)}"
                 )
+    
     def actualiser_statistiques_avancees(self):
-        """Affiche les statistiques avancées"""
+        """
+        Affiche les statistiques avancées depuis le serveur.
+        
+        Récupère et affiche des statistiques détaillées comme :
+        - Sujets les plus populaires
+        - Sujets les moins demandés
+        - Taux de satisfaction
+        """
         try:
             # Récupérer les statistiques depuis le serveur
             reponse = self.envoyer_requete("GET_ADVANCED_STATS")
@@ -1078,7 +1222,15 @@ class AdminPanel(QMainWindow):
             self.stats_widget.setText(f"Erreur: {e}")
     
     def actualiser_donnees(self):
-        """Actualise manuellement toutes les données"""
+        """
+        Actualise manuellement toutes les données.
+        
+        Cette méthode recharge toutes les données depuis le serveur :
+        - Sujets
+        - Utilisateurs
+        - Configuration
+        - Statistiques
+        """
         self.load_sujets()
         self.load_utilisateurs()
         self.load_config()
@@ -1086,7 +1238,11 @@ class AdminPanel(QMainWindow):
         QMessageBox.information(self, "Actualisation", "✅ Données actualisées avec succès!")
     
     def deconnexion(self):
-        """Déconnexion de l'admin"""
+        """
+        Déconnecte l'administrateur du système.
+        
+        Demande confirmation puis ferme la fenêtre d'administration.
+        """
         reponse = QMessageBox.question(
             self,
             "Déconnexion",
@@ -1102,7 +1258,12 @@ class AdminPanel(QMainWindow):
                 self.parent_fenetre.show()
     
     def afficher_a_propos(self):
-        """Affiche la boîte À propos"""
+        """
+        Affiche la boîte de dialogue "À propos".
+        
+        Présente les informations sur l'application, sa version
+        et ses fonctionnalités principales.
+        """
         QMessageBox.about(self, "À propos",
             "<h2>AttributionSujet - Administration</h2>"
             "<p><b>Version:</b> 1.1.0</p>"
@@ -1114,13 +1275,19 @@ class AdminPanel(QMainWindow):
             "<li>Statistiques en temps réel</li>"
             "<li>Algorithme d'attribution</li>"  # NOUVEAU : Fonctionnalité ajoutée
             "</ul>"
-            "<p>© 2024 - Tous droits réservés</p>")
+            "<p>© 2026 - Tous droits réservés</p>")
 
 
 # ============================
 # Lancement direct (pour test)
 # ============================
 if __name__ == "__main__":
+    """
+    Point d'entrée pour l'exécution directe de l'application d'administration.
+    
+    Cette section initialise l'application PyQt5, configure la palette de couleurs
+    et lance la fenêtre principale d'administration.
+    """
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     

@@ -1,3 +1,11 @@
+"""
+Module d'algorithme d'attribution des sujets.
+
+Ce module implémente un algorithme d'attribution des sujets aux utilisateurs basé sur
+leurs préférences. Il utilise un système en cascade avec tirage au sort en cas d'égalité
+et génère des listes d'attente pour les sujets sur-souscrits.
+"""
+
 import random
 from datetime import datetime
 import sqlite3
@@ -7,17 +15,45 @@ import os
 # Importez votre module existant
 import module_Attribution_sujets_pyqt as db_module
 
+# Chemin vers la base de données SQLite
 DB_PATH = os.path.join("data", "base.sqlite")
 
+
 class AlgorithmeAttribution:
+    """
+    Classe principale pour l'algorithme d'attribution des sujets.
+    
+    Cette classe gère l'attribution des sujets aux utilisateurs en fonction de leurs
+    préférences, avec des mécanismes de tirage au sort et de listes d'attente.
+    
+    Attributes:
+        conn (sqlite3.Connection): Connexion à la base de données SQLite
+    """
+    
     def __init__(self):
+        """
+        Initialise l'algorithme d'attribution.
+        
+        Cette méthode initialise la base de données si nécessaire et établit
+        une connexion avec la base de données SQLite.
+        """
         # Assurez-vous que la base est initialisée
         db_module.init_db()  # Initialise les tables si elles n'existent pas
         self.conn = sqlite3.connect(DB_PATH)
+        # Utilise sqlite3.Row pour accéder aux colonnes par nom
         self.conn.row_factory = sqlite3.Row
     
     def get_choix_utilisateurs(self):
-        """Récupère tous les choix des utilisateurs avec leurs préférences"""
+        """
+        Récupère tous les choix des utilisateurs avec leurs préférences.
+        
+        Returns:
+            list: Liste des choix des utilisateurs avec les informations des
+                  utilisateurs et des sujets, triés par ordre de préférence.
+                  
+        Note:
+            Seuls les sujets actifs sont inclus dans la requête.
+        """
         cursor = self.conn.cursor()
         cursor.execute("""
             SELECT 
@@ -39,7 +75,12 @@ class AlgorithmeAttribution:
         return cursor.fetchall()
     
     def get_sujets_disponibles(self):
-        """Récupère tous les sujets actifs avec leurs capacités"""
+        """
+        Récupère tous les sujets actifs avec leurs capacités.
+        
+        Returns:
+            list: Liste des sujets actifs avec leurs informations principales.
+        """
         cursor = self.conn.cursor()
         cursor.execute("""
             SELECT id, titre, capacite_max, actif
@@ -50,21 +91,31 @@ class AlgorithmeAttribution:
     
     def attribution_cascade(self):
         """
-        Algorithme d'attribution en cascade (1er choix → 2e choix → etc.)
-        avec tirage au sort en cas d'égalité
+        Algorithme d'attribution en cascade avec tirage au sort.
+        
+        L'algorithme fonctionne en deux phases :
+        1. Attribution des premiers choix, avec tirage au sort en cas de sur-souscription
+        2. Cascade vers les choix suivants pour les utilisateurs non attribués
+        
+        Returns:
+            tuple: (sujets_dict, utilisateurs_dict) où :
+                - sujets_dict: Dictionnaire des sujets avec leurs attributions
+                - utilisateurs_dict: Dictionnaire des utilisateurs avec leurs choix
         """
         # Récupérer les données
         choix = self.get_choix_utilisateurs()
         sujets = self.get_sujets_disponibles()
         
-        # Initialiser les structures
+        # Initialiser les structures de données
+        # Structure pour stocker les informations par sujet
         sujets_dict = {sujet['id']: {
             'titre': sujet['titre'],
             'capacite': sujet['capacite_max'],
-            'attribues': [],
-            'liste_attente': []
+            'attribues': [],  # Liste des utilisateurs attribués
+            'liste_attente': []  # Liste d'attente pour les sujets complets
         } for sujet in sujets}
         
+        # Structure pour stocker les informations par utilisateur
         utilisateurs_dict = {}
         
         # Organiser les choix par utilisateur
@@ -75,9 +126,10 @@ class AlgorithmeAttribution:
                     'nom': row['nom'],
                     'prenom': row['prenom'],
                     'login': row['login'],
-                    'choix': []
+                    'choix': []  # Liste des choix de l'utilisateur
                 }
             
+            # Ajouter le choix à la liste de l'utilisateur
             utilisateurs_dict[user_id]['choix'].append({
                 'sujet_id': row['sujet_id'],
                 'ordre': row['ordre_preference'],
@@ -92,28 +144,31 @@ class AlgorithmeAttribution:
         # Phase 1: Attribution des premiers choix
         print("=== PHASE 1: Attribution des premiers choix ===")
         for user_id, user_data in utilisateurs_tries:
+            # Vérifier si l'utilisateur a fait des choix
             if not user_data['choix']:
                 continue
                 
-            # Trier les choix par ordre de préférence
+            # Trier les choix par ordre de préférence (ordre croissant)
             choix_tries = sorted(user_data['choix'], key=lambda x: x['ordre'])
-            premier_choix = choix_tries[0]
+            premier_choix = choix_tries[0]  # Premier choix (ordre 1)
             sujet_id = premier_choix['sujet_id']
             
             if sujet_id in sujets_dict:
                 sujet = sujets_dict[sujet_id]
+                # Vérifier si le sujet a encore de la place
                 if len(sujet['attribues']) < sujet['capacite']:
-                    # Place disponible
+                    # Place disponible - attribution directe
                     sujet['attribues'].append({
                         'user_id': user_id,
                         'nom': user_data['nom'],
                         'prenom': user_data['prenom'],
                         'ordre_preference': premier_choix['ordre']
                     })
-                    print(f"✓ {user_data['prenom']} {user_data['nom']} → {premier_choix['titre']} (1er choix)")
+                    print(f"[SUCCES] {user_data['prenom']} {user_data['nom']} -> {premier_choix['titre']} (1er choix)")
                 else:
-                    # Capacité dépassée, tirage au sort
-                    print(f"⚖️ Capacité dépassée pour {premier_choix['titre']}")
+                    # Capacité dépassée - tirage au sort nécessaire
+                    print(f"[EGALITE] Capacité dépassée pour {premier_choix['titre']}")
+                    # Ajouter le nouveau candidat à la liste des candidats
                     candidats = sujet['attribues'] + [{
                         'user_id': user_id,
                         'nom': user_data['nom'],
@@ -121,39 +176,44 @@ class AlgorithmeAttribution:
                         'ordre_preference': premier_choix['ordre']
                     }]
                     
-                    # Tirage au sort
+                    # Tirage au sort pour déterminer qui est attribué
                     random.shuffle(candidats)
+                    # Les premiers 'capacite' candidats sont attribués
                     sujet['attribues'] = candidats[:sujet['capacite']]
+                    # Les autres vont en liste d'attente
                     sujet['liste_attente'] = candidats[sujet['capacite']:]
                     
                     # Vérifier si l'utilisateur est dans la liste d'attente
                     dans_liste_attente = any(u['user_id'] == user_id for u in sujet['liste_attente'])
                     if dans_liste_attente:
-                        print(f"⏳ {user_data['prenom']} {user_data['nom']} → Liste d'attente pour {premier_choix['titre']}")
+                        print(f"[ATTENTE] {user_data['prenom']} {user_data['nom']} -> Liste d'attente pour {premier_choix['titre']}")
         
         # Phase 2: Cascade pour les choix suivants
         print("\n=== PHASE 2: Cascade vers les choix suivants ===")
         for user_id, user_data in utilisateurs_tries:
             # Vérifier si l'utilisateur n'a pas encore de sujet attribué
+            # Cette vérification parcourt tous les sujets attribués
             if any(user_id in [u['user_id'] for sujet in sujets_dict.values() for u in sujet['attribues']]):
                 continue
             
-            # Chercher dans les choix suivants
+            # Chercher dans les choix suivants (à partir du 2ème choix)
             choix_tries = sorted(user_data['choix'], key=lambda x: x['ordre'])
             for choix in choix_tries[1:]:  # Ignorer le premier choix déjà traité
                 sujet_id = choix['sujet_id']
                 
                 if sujet_id in sujets_dict:
                     sujet = sujets_dict[sujet_id]
+                    # Vérifier si le sujet a encore de la place
                     if len(sujet['attribues']) < sujet['capacite']:
+                        # Attribution du choix suivant
                         sujet['attribues'].append({
                             'user_id': user_id,
                             'nom': user_data['nom'],
                             'prenom': user_data['prenom'],
                             'ordre_preference': choix['ordre']
                         })
-                        print(f"✓ {user_data['prenom']} {user_data['nom']} → {choix['titre']} (choix #{choix['ordre']})")
-                        break
+                        print(f"[SUCCES] {user_data['prenom']} {user_data['nom']} -> {choix['titre']} (choix #{choix['ordre']})")
+                        break  # On sort de la boucle une fois attribué
         
         # Sauvegarder les résultats dans la base de données
         self.sauvegarder_resultats(sujets_dict)
@@ -161,7 +221,17 @@ class AlgorithmeAttribution:
         return sujets_dict, utilisateurs_dict
     
     def sauvegarder_resultats(self, sujets_dict):
-        """Sauvegarde les résultats d'attribution dans la base de données"""
+        """
+        Sauvegarde les résultats d'attribution dans la base de données.
+        
+        Args:
+            sujets_dict (dict): Dictionnaire contenant les résultats d'attribution
+                                par sujet.
+                                
+        Note:
+            Cette méthode crée la table `resultats_attribution` si elle n'existe pas
+            et vide les résultats précédents avant d'insérer les nouveaux.
+        """
         cursor = self.conn.cursor()
         
         # Vider la table des résultats précédents
@@ -198,8 +268,8 @@ class AlgorithmeAttribution:
                     attribution['nom'],
                     attribution['prenom'],
                     attribution['ordre_preference'],
-                    'attribue',
-                    None
+                    'attribue',  # Statut: attribué
+                    None  # Pas de position en liste d'attente
                 ))
             
             # Liste d'attente
@@ -214,15 +284,26 @@ class AlgorithmeAttribution:
                     attente['nom'],
                     attente['prenom'],
                     attente['ordre_preference'],
-                    'attente',
-                    i + 1
+                    'attente',  # Statut: en attente
+                    i + 1  # Position dans la liste d'attente (commence à 1)
                 ))
         
         self.conn.commit()
-        print("✅ Résultats sauvegardés dans la base de données")
+        print("[SUCCES] Résultats sauvegardés dans la base de données")
     
     def get_statistiques(self):
-        """Calcule les statistiques d'attribution"""
+        """
+        Calcule les statistiques d'attribution.
+        
+        Returns:
+            dict: Dictionnaire contenant diverses statistiques :
+                - nb_attributions: Nombre d'utilisateurs ayant un sujet attribué
+                - nb_en_attente: Nombre d'utilisateurs en liste d'attente
+                - nb_utilisateurs_traites: Nombre d'utilisateurs ayant un résultat
+                - nb_total_utilisateurs: Nombre total d'utilisateurs
+                - stats_sujets: Statistiques détaillées par sujet
+                - moyenne_choix: Nombre moyen de choix par utilisateur
+        """
         cursor = self.conn.cursor()
         
         # Statistiques générales
@@ -280,14 +361,35 @@ class AlgorithmeAttribution:
         }
     
     def close(self):
+        """
+        Ferme la connexion à la base de données.
+        
+        Cette méthode doit être appelée lorsque l'objet n'est plus nécessaire
+        pour libérer les ressources de la base de données.
+        """
         self.conn.close()
 
 
 def lancer_attribution():
-    """Fonction principale pour lancer l'attribution"""
-    print("🚀 Lancement de l'algorithme d'attribution...")
+    """
+    Fonction principale pour lancer l'attribution.
+    
+    Cette fonction coordonne l'ensemble du processus d'attribution :
+    1. Vérification des conditions préalables (dates limites, choix existants)
+    2. Exécution de l'algorithme d'attribution
+    3. Sauvegarde des résultats
+    4. Affichage des statistiques
+    
+    Returns:
+        tuple: (success, sujets_dict, utilisateurs_dict) où :
+            - success: Booléen indiquant si l'attribution a réussi
+            - sujets_dict: Dictionnaire des résultats par sujet (si succès)
+            - utilisateurs_dict: Dictionnaire des utilisateurs (si succès)
+    """
+    print("[DEBUT] Lancement de l'algorithme d'attribution...")
     print("=" * 60)
     
+    # Initialiser l'algorithme
     algo = AlgorithmeAttribution()
     
     # Vérifier si AU MOINS UN sujet a sa date limite passée
@@ -305,9 +407,10 @@ def lancer_attribution():
     dates_info = cursor.fetchall()
     print("\n=== DÉBUG : VÉRIFICATION DES DATES ===")
     for row in dates_info:
-        print(f"  • {row['titre']}: date_limite={row['date_limite']}, aujourd'hui={row['aujourdhui']}, écart={row['jours_ecart']} jours")
+        print(f"  * {row['titre']}: date_limite={row['date_limite']}, aujourd'hui={row['aujourdhui']}, écart={row['jours_ecart']} jours")
     
     # Requête corrigée pour vérifier les dates limites
+    # Un sujet est éligible si sa date limite est passée ou nulle
     cursor.execute("""
         SELECT COUNT(*) as nb_sujets_eligibles 
         FROM sujets 
@@ -317,11 +420,12 @@ def lancer_attribution():
     
     nb_sujets_eligibles = cursor.fetchone()['nb_sujets_eligibles']
     
+    # Vérification des dates limites
     if nb_sujets_eligibles == 0:
-        print("\n⚠️  Aucun sujet n'a sa date limite passée !")
+        print("\n[ATTENTION] Aucun sujet n'a sa date limite passée !")
         print("   L'attribution ne peut être lancée que pour les sujets dont la date limite est atteinte.")
         
-        # OPTION : Informer sur les dates limites
+        # Informer sur les dates limites des sujets actifs
         cursor.execute("""
             SELECT titre, date_limite, actif
             FROM sujets 
@@ -335,34 +439,34 @@ def lancer_attribution():
             try:
                 date_limite = datetime.strptime(sujet['date_limite'], '%Y-%m-%d')
                 aujourdhui = datetime.now()
-                statut = "✓ PASSÉE" if date_limite.date() <= aujourdhui.date() else "✗ FUTURE"
-                print(f"   • {sujet['titre']} : {sujet['date_limite']} ({statut})")
+                statut = "[PASSEE]" if date_limite.date() <= aujourdhui.date() else "[FUTURE]"
+                print(f"   * {sujet['titre']} : {sujet['date_limite']} {statut}")
             except:
-                print(f"   • {sujet['titre']} : {sujet['date_limite']} (Format invalide)")
+                print(f"   * {sujet['titre']} : {sujet['date_limite']} (Format invalide)")
         
-        # OPTION 2 : Forcer l'attribution quand même (pour tests)
+        # Option pour forcer l'attribution (utile pour les tests)
         reponse = input("\nVoulez-vous forcer l'attribution quand même ? (oui/non): ")
         if reponse.lower() == 'oui':
-            print("Forçage de l'attribution...")
+            print("[FORCAGE] Forçage de l'attribution...")
             # On continue même si les dates ne sont pas passées
             nb_sujets_eligibles = 1
         else:
             algo.close()
             return False, None, None
     
-    print(f"\n✅ {nb_sujets_eligibles} sujet(s) avec date limite passée ou forcée")
+    print(f"\n[SUCCES] {nb_sujets_eligibles} sujet(s) avec date limite passée ou forcée")
     
     # VÉRIFIER D'ABORD SI DES CHOIX EXISTENT
     cursor.execute("SELECT COUNT(*) as nb_choix FROM choix_utilisateurs")
     nb_choix_total = cursor.fetchone()['nb_choix']
     
     if nb_choix_total == 0:
-        print("❌ Aucun choix enregistré par les utilisateurs !")
+        print("[ERREUR] Aucun choix enregistré par les utilisateurs !")
         print("   Les utilisateurs doivent d'abord sélectionner des sujets.")
         algo.close()
         return False, None, None
     
-    print(f"✅ {nb_choix_total} choix(s) enregistrés par les utilisateurs\n")
+    print(f"[SUCCES] {nb_choix_total} choix(s) enregistrés par les utilisateurs\n")
     
     try:
         # OPTION : Inclure tous les sujets actifs, indépendamment de la date limite
@@ -374,11 +478,11 @@ def lancer_attribution():
         sujets_eligibles = cursor.fetchall()
         sujets_eligibles_ids = [s['id'] for s in sujets_eligibles]
         
-        print(f"✅ {len(sujets_eligibles)} sujet(s) actif(s) inclus dans l'attribution")
+        print(f"[SUCCES] {len(sujets_eligibles)} sujet(s) actif(s) inclus dans l'attribution")
         
         # DEBUG: Afficher les sujets inclus
         for sujet in sujets_eligibles:
-            print(f"   • {sujet['titre']} (ID: {sujet['id']}, Date limite: {sujet['date_limite']})")
+            print(f"   * {sujet['titre']} (ID: {sujet['id']}, Date limite: {sujet['date_limite']})")
         
         # DEBUG: Vérifier les choix pour ces sujets
         cursor.execute(f"""
@@ -388,17 +492,18 @@ def lancer_attribution():
         """, sujets_eligibles_ids)
         nb_choix_eligibles = cursor.fetchone()['nb_choix_eligibles']
         
-        print(f"✅ {nb_choix_eligibles} choix pour les sujets éligibles")
+        print(f"[SUCCES] {nb_choix_eligibles} choix pour les sujets éligibles")
         
+        # Vérification finale avant lancement
         if nb_choix_eligibles == 0:
-            print("❌ Aucun choix enregistré pour les sujets actifs")
+            print("[ERREUR] Aucun choix enregistré pour les sujets actifs")
             print("   Les utilisateurs n'ont pas sélectionné de sujets actifs.")
             algo.close()
             return False, None, None
         
-        print(f"\n✅ Lancement de l'attribution...\n")
+        print(f"\n[SUCCES] Lancement de l'attribution...\n")
         
-        # Exécuter l'algorithme d'attribution personnalisé
+        # Initialisation des structures pour l'attribution
         sujets_dict = {sujet['id']: {
             'titre': sujet['titre'],
             'capacite': sujet['capacite_max'],
@@ -451,13 +556,12 @@ def lancer_attribution():
                                   key=lambda x: len(x[1]['choix']), 
                                   reverse=True)
         
-        # Phase 1: Attribution des premiers choix
+        # Phase 1: Attribution des premiers choix (identique à la méthode attribution_cascade)
         print("=== PHASE 1: Attribution des premiers choix ===")
         for user_id, user_data in utilisateurs_tries:
             if not user_data['choix']:
                 continue
                 
-            # Trier les choix par ordre de préférence
             choix_tries = sorted(user_data['choix'], key=lambda x: x['ordre'])
             premier_choix = choix_tries[0]
             sujet_id = premier_choix['sujet_id']
@@ -465,17 +569,15 @@ def lancer_attribution():
             if sujet_id in sujets_dict:
                 sujet = sujets_dict[sujet_id]
                 if len(sujet['attribues']) < sujet['capacite']:
-                    # Place disponible
                     sujet['attribues'].append({
                         'user_id': user_id,
                         'nom': user_data['nom'],
                         'prenom': user_data['prenom'],
                         'ordre_preference': premier_choix['ordre']
                     })
-                    print(f"✓ {user_data['prenom']} {user_data['nom']} → {premier_choix['titre']} (1er choix)")
+                    print(f"[SUCCES] {user_data['prenom']} {user_data['nom']} -> {premier_choix['titre']} (1er choix)")
                 else:
-                    # Capacité dépassée, tirage au sort
-                    print(f"⚖️ Capacité dépassée pour {premier_choix['titre']}")
+                    print(f"[EGALITE] Capacité dépassée pour {premier_choix['titre']}")
                     candidats = sujet['attribues'] + [{
                         'user_id': user_id,
                         'nom': user_data['nom'],
@@ -483,27 +585,24 @@ def lancer_attribution():
                         'ordre_preference': premier_choix['ordre']
                     }]
                     
-                    # Tirage au sort
                     random.shuffle(candidats)
                     sujet['attribues'] = candidats[:sujet['capacite']]
                     sujet['liste_attente'] = candidats[sujet['capacite']:]
                     
-                    # Vérifier si l'utilisateur est dans la liste d'attente
                     dans_liste_attente = any(u['user_id'] == user_id for u in sujet['liste_attente'])
                     if dans_liste_attente:
-                        print(f"⏳ {user_data['prenom']} {user_data['nom']} → Liste d'attente pour {premier_choix['titre']}")
+                        print(f"[ATTENTE] {user_data['prenom']} {user_data['nom']} -> Liste d'attente pour {premier_choix['titre']}")
         
         # Phase 2: Cascade pour les choix suivants
         print("\n=== PHASE 2: Cascade vers les choix suivants ===")
         for user_id, user_data in utilisateurs_tries:
             # Vérifier si l'utilisateur n'a pas encore de sujet attribué
-            # Ligne 500 - Remplacez par :
+            # Modification Ligne 500 : comparaison directe au lieu d'utilisation de 'in'
             if any(user_id == u['user_id'] for sujet in sujets_dict.values() for u in sujet['attribues']):
                 continue
             
-            # Chercher dans les choix suivants
             choix_tries = sorted(user_data['choix'], key=lambda x: x['ordre'])
-            for choix in choix_tries[1:]:  # Ignorer le premier choix déjà traité
+            for choix in choix_tries[1:]:
                 sujet_id = choix['sujet_id']
                 
                 if sujet_id in sujets_dict:
@@ -515,7 +614,7 @@ def lancer_attribution():
                             'prenom': user_data['prenom'],
                             'ordre_preference': choix['ordre']
                         })
-                        print(f"✓ {user_data['prenom']} {user_data['nom']} → {choix['titre']} (choix #{choix['ordre']})")
+                        print(f"[SUCCES] {user_data['prenom']} {user_data['nom']} -> {choix['titre']} (choix #{choix['ordre']})")
                         break
         
         # Sauvegarder les résultats dans la base de données
@@ -523,14 +622,14 @@ def lancer_attribution():
         
         # Afficher les résultats
         print("\n" + "=" * 60)
-        print("📊 RÉSULTATS DE L'ATTRIBUTION")
+        print("RESULTATS DE L'ATTRIBUTION")
         print("=" * 60)
         
         for sujet_id, sujet_data in sujets_dict.items():
-            print(f"\n📌 {sujet_data['titre']} (Capacité: {sujet_data['capacite']})")
+            print(f"\nSujet: {sujet_data['titre']} (Capacité: {sujet_data['capacite']})")
             print("   Attribués :")
             for attrib in sujet_data['attribues']:
-                print(f"     • {attrib['prenom']} {attrib['nom']} (Choix #{attrib['ordre_preference']})")
+                print(f"     * {attrib['prenom']} {attrib['nom']} (Choix #{attrib['ordre_preference']})")
             
             if sujet_data['liste_attente']:
                 print("   Liste d'attente :")
@@ -540,21 +639,30 @@ def lancer_attribution():
         # Calculer les statistiques
         stats = algo.get_statistiques()
         print("\n" + "=" * 60)
-        print("📈 STATISTIQUES")
+        print("STATISTIQUES")
         print("=" * 60)
-        print(f"• Utilisateurs avec attribution : {stats['nb_attributions']}/{stats['nb_total_utilisateurs']}")
-        print(f"• Utilisateurs en liste d'attente : {stats['nb_en_attente']}")
-        print(f"• Nombre moyen de choix par personne : {stats['moyenne_choix']}")
+        print(f"* Utilisateurs avec attribution : {stats['nb_attributions']}/{stats['nb_total_utilisateurs']}")
+        print(f"* Utilisateurs en liste d'attente : {stats['nb_en_attente']}")
+        print(f"* Nombre moyen de choix par personne : {stats['moyenne_choix']}")
         
+        # Fermer la connexion et retourner les résultats
         algo.close()
         return True, sujets_dict, utilisateurs_dict
         
     except Exception as e:
-        print(f"❌ Erreur lors de l'attribution : {e}")
+        # Gestion des erreurs
+        print(f"[ERREUR] Erreur lors de l'attribution : {e}")
         import traceback
         traceback.print_exc()
         algo.close()
         return False, None, None
 
+
 if __name__ == "__main__":
+    """
+    Point d'entrée pour l'exécution directe du module.
+    
+    Lorsque ce module est exécuté directement (et non importé), il lance
+    l'algorithme d'attribution et affiche les résultats dans la console.
+    """
     lancer_attribution()

@@ -1,111 +1,129 @@
-import sys
-import socket
-import ast
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor, QBrush
+import sys  # Module système pour interagir avec l'interpréteur Python
+import socket  # Module pour les communications réseau via sockets
+import ast  # Module pour évaluer des chaînes en structures Python (sécurité)
+from PyQt5.QtWidgets import *  # Tous les widgets de l'interface graphique PyQt5
+from PyQt5.QtCore import Qt, QTimer  # Classes de base Qt: constantes et timer
+from PyQt5.QtGui import QFont, QPalette, QColor, QBrush  # Classes graphiques Qt
 
-SERVER_IP = "127.0.0.1"
-SERVER_PORT = 55555
+# Configuration du serveur - adresse IP et port pour la communication réseau
+SERVER_IP = "127.0.0.1"  # Adresse localhost (serveur local)
+SERVER_PORT = 55555  # Port de communication
 
 class ResultatsInterface(QWidget):
+    """
+    Interface graphique pour afficher les résultats d'attribution des sujets.
+    Cette classe hérite de QWidget et gère l'affichage des résultats pour un utilisateur.
+    """
+    
     def __init__(self, login, parent_fenetre):
-        super().__init__()
-        self.login = login
-        self.parent_fenetre = parent_fenetre
+        """
+        Constructeur de la classe ResultatsInterface.
         
-        self.setWindowTitle(f"Résultats d'attribution - {login}")
-        self.showMaximized()
+        Args:
+            login (str): Identifiant de l'utilisateur connecté
+            parent_fenetre: Référence à la fenêtre parente pour permettre le retour
+        """
+        super().__init__()  # Appel du constructeur de la classe parent QWidget
+        self.login = login  # Stockage du login utilisateur
+        self.parent_fenetre = parent_fenetre  # Référence à la fenêtre précédente
         
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(70, 130, 180))
-        self.setPalette(palette)
+        # Configuration de la fenêtre
+        self.setWindowTitle(f"Résultats d'attribution - {login}")  # Titre avec login
+        self.showMaximized()  # Affichage en plein écran
         
-        self.init_ui()
-        self.charger_resultats()
+        # Configuration du fond d'écran (bleu acier)
+        palette = QPalette()  # Création d'une palette de couleurs
+        palette.setColor(QPalette.Window, QColor(70, 130, 180))  # Couleur bleu acier
+        self.setPalette(palette)  # Application de la palette
         
-        # Auto-rafraîchissement toutes les 30 secondes
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.charger_resultats)
-        self.timer.start(30000)
+        self.init_ui()  # Initialisation de l'interface utilisateur
+        self.charger_resultats()  # Chargement initial des résultats
+        
+        # Configuration d'un timer pour le rafraîchissement automatique
+        self.timer = QTimer()  # Création d'un timer
+        self.timer.timeout.connect(self.charger_resultats)  # Connexion au slot de rafraîchissement
+        self.timer.start(30000)  # Démarrage du timer (30 secondes)
     
     def init_ui(self):
-        """Initialise l'interface utilisateur"""
-        # Layout principal
+        """Initialise l'interface utilisateur avec tous ses composants."""
+        # Layout principal - organisation verticale des éléments
         main_layout = QVBoxLayout()
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setSpacing(20)  # Espacement entre les widgets
+        main_layout.setContentsMargins(30, 30, 30, 30)  # Marges (gauche, haut, droite, bas)
         
-        # En-tête
-        header_layout = QHBoxLayout()
+        # ==================== EN-TÊTE ====================
+        header_layout = QHBoxLayout()  # Layout horizontal pour l'en-tête
         
-        # Titre
+        # Titre principal
         lbl_titre = QLabel("🎯 Vos Résultats d'Attribution")
-        lbl_titre.setFont(QFont("Arial", 24, QFont.Bold))
-        lbl_titre.setStyleSheet("color: white;")
+        lbl_titre.setFont(QFont("Arial", 24, QFont.Bold))  # Police en gras, taille 24
+        lbl_titre.setStyleSheet("color: white;")  # Texte en blanc
         
-        # Boutons
+        # Bouton d'actualisation manuelle
         btn_actualiser = QPushButton("🔄 Actualiser")
         btn_actualiser.setFont(QFont("Arial", 12))
+        # Feuille de style CSS pour le bouton
         btn_actualiser.setStyleSheet("""
             QPushButton {
-                background: #2196F3;
+                background: #2196F3;  /* Bleu */
                 color: white;
-                padding: 10px 20px;
-                border-radius: 8px;
-                border: 2px solid white;
+                padding: 10px 20px;  /* Espacement intérieur */
+                border-radius: 8px;  /* Coins arrondis */
+                border: 2px solid white;  /* Bordure blanche */
             }
             QPushButton:hover {
-                background: #42A5F5;
+                background: #42A5F5;  /* Bleu plus clair au survol */
             }
         """)
-        btn_actualiser.clicked.connect(self.charger_resultats)
+        btn_actualiser.clicked.connect(self.charger_resultats)  # Connexion à la méthode
         
+        # Bouton de retour à la fenêtre des sujets
         btn_retour = QPushButton("← Retour aux sujets")
         btn_retour.setFont(QFont("Arial", 12))
         btn_retour.setStyleSheet("""
             QPushButton {
-                background: #757575;
+                background: #757575;  /* Gris */
                 color: white;
                 padding: 10px 20px;
                 border-radius: 8px;
             }
             QPushButton:hover {
-                background: #9E9E9E;
+                background: #9E9E9E;  /* Gris plus clair au survol */
             }
         """)
-        btn_retour.clicked.connect(self.retour_sujets)
+        btn_retour.clicked.connect(self.retour_sujets)  # Connexion à la méthode de retour
         
-        header_layout.addWidget(lbl_titre)
-        header_layout.addStretch()
-        header_layout.addWidget(btn_actualiser)
-        header_layout.addWidget(btn_retour)
+        # Assemblage de l'en-tête
+        header_layout.addWidget(lbl_titre)  # Ajout du titre
+        header_layout.addStretch()  # Espace élastique pour pousser les boutons à droite
+        header_layout.addWidget(btn_actualiser)  # Ajout du bouton d'actualisation
+        header_layout.addWidget(btn_retour)  # Ajout du bouton de retour
         
-        main_layout.addLayout(header_layout)
+        main_layout.addLayout(header_layout)  # Ajout de l'en-tête au layout principal
         
-        # Zone d'information
+        # ==================== ZONE D'INFORMATION ====================
         self.lbl_info = QLabel("Chargement des résultats...")
         self.lbl_info.setFont(QFont("Arial", 14))
         self.lbl_info.setStyleSheet("""
-            color: #FFD700;
-            background: rgba(0, 0, 0, 0.3);
+            color: #FFD700;  /* Or */
+            background: rgba(0, 0, 0, 0.3);  /* Fond noir semi-transparent */
             padding: 15px;
             border-radius: 10px;
-            border: 2px solid #FFD700;
+            border: 2px solid #FFD700;  /* Bordure or */
         """)
-        self.lbl_info.setAlignment(Qt.AlignCenter)
+        self.lbl_info.setAlignment(Qt.AlignCenter)  # Centrage du texte
         main_layout.addWidget(self.lbl_info)
         
-        # Widget avec onglets
-        self.tab_widget = QTabWidget()
+        # ==================== ONGLETS ====================
+        self.tab_widget = QTabWidget()  # Widget avec onglets
         self.tab_widget.setStyleSheet("""
             QTabWidget::pane {
                 border: 2px solid white;
-                background: rgba(255, 255, 255, 0.1);
+                background: rgba(255, 255, 255, 0.1);  /* Fond blanc très transparent */
                 border-radius: 10px;
             }
             QTabBar::tab {
-                background: #4682B4;
+                background: #4682B4;  /* Bleu acier */
                 color: white;
                 padding: 12px 20px;
                 margin-right: 2px;
@@ -115,58 +133,57 @@ class ResultatsInterface(QWidget):
                 font-weight: bold;
             }
             QTabBar::tab:selected {
-                background: #FFD700;
-                color: #333;
+                background: #FFD700;  /* Or pour l'onglet sélectionné */
+                color: #333;  /* Texte foncé */
             }
             QTabBar::tab:hover {
-                background: #5A9BD3;
+                background: #5A9BD3;  /* Bleu plus clair au survol */
             }
         """)
         
-        # Onglet 1: Résultats personnels
-        self.tab_personnel = QWidget()
-        self.init_tab_personnel()
+        # Création des différents onglets
+        self.tab_personnel = QWidget()  # Onglet des résultats personnels
+        self.init_tab_personnel()  # Initialisation
         
-        # Onglet 2: Liste d'attente
-        self.tab_attente = QWidget()
-        self.init_tab_attente()
+        self.tab_attente = QWidget()  # Onglet des listes d'attente
+        self.init_tab_attente()  # Initialisation
         
-        # Onglet 3: Statistiques globales
-        self.tab_stats = QWidget()
-        self.init_tab_stats()
+        self.tab_stats = QWidget()  # Onglet des statistiques
+        self.init_tab_stats()  # Initialisation
         
-        # Onglet 4: Statistiques avancées
-        self.tab_avance = QWidget()
-        self.init_tab_avance()
+        self.tab_avance = QWidget()  # Onglet des statistiques avancées
+        self.init_tab_avance()  # Initialisation
         
+        # Ajout des onglets au widget avec leurs icônes et noms
         self.tab_widget.addTab(self.tab_personnel, "📋 Mes Sujets")
         self.tab_widget.addTab(self.tab_attente, "⏳ Liste d'Attente")
         self.tab_widget.addTab(self.tab_stats, "📊 Statistiques")
         self.tab_widget.addTab(self.tab_avance, "📈 Analyse Avancée")
         
-        main_layout.addWidget(self.tab_widget)
-        self.setLayout(main_layout)
+        main_layout.addWidget(self.tab_widget)  # Ajout des onglets au layout principal
+        self.setLayout(main_layout)  # Application du layout à la fenêtre
     
     def init_tab_personnel(self):
-        """Initialise l'onglet des résultats personnels"""
-        layout = QVBoxLayout()
+        """Initialise l'onglet des résultats personnels avec un tableau."""
+        layout = QVBoxLayout()  # Layout vertical pour cet onglet
         
-        # Tableau des sujets attribués
+        # Tableau pour afficher les sujets attribués
         self.table_attributions = QTableWidget()
-        self.table_attributions.setColumnCount(5)
+        self.table_attributions.setColumnCount(5)  # 5 colonnes
+        # En-têtes des colonnes
         self.table_attributions.setHorizontalHeaderLabels([
             "Sujet", "Description", "Choix #", "Statut", "Date"
         ])
-        self.table_attributions.horizontalHeader().setStretchLastSection(True)
+        self.table_attributions.horizontalHeader().setStretchLastSection(True)  # Dernière colonne extensible
         self.table_attributions.setStyleSheet("""
             QTableWidget {
                 background: white;
                 font-size: 12px;
-                border: 2px solid #2196F3;
+                border: 2px solid #2196F3;  /* Bordure bleue */
                 border-radius: 5px;
             }
             QHeaderView::section {
-                background: #2196F3;
+                background: #2196F3;  /* Fond bleu pour les en-têtes */
                 color: white;
                 padding: 10px;
                 font-weight: bold;
@@ -174,16 +191,16 @@ class ResultatsInterface(QWidget):
             }
         """)
         
-        layout.addWidget(self.table_attributions)
-        self.tab_personnel.setLayout(layout)
+        layout.addWidget(self.table_attributions)  # Ajout du tableau au layout
+        self.tab_personnel.setLayout(layout)  # Application du layout à l'onglet
     
     def init_tab_attente(self):
-        """Initialise l'onglet des listes d'attente"""
+        """Initialise l'onglet des listes d'attente."""
         layout = QVBoxLayout()
         
-        # Tableau des listes d'attente
+        # Tableau pour les listes d'attente
         self.table_attente = QTableWidget()
-        self.table_attente.setColumnCount(6)
+        self.table_attente.setColumnCount(6)  # 6 colonnes
         self.table_attente.setHorizontalHeaderLabels([
             "Sujet", "Description", "Choix #", "Position", 
             "Places Total", "Estimation"
@@ -192,30 +209,30 @@ class ResultatsInterface(QWidget):
         
         layout.addWidget(self.table_attente)
         
-        # Note d'information
+        # Note d'information sur le fonctionnement des listes d'attente
         lbl_note = QLabel(
             "ℹ️ Votre position dans la liste d'attente peut évoluer si d'autres "
             "stagiaires renoncent à leur attribution."
         )
         lbl_note.setFont(QFont("Arial", 10))
         lbl_note.setStyleSheet("color: #FFD700; font-style: italic; padding: 10px;")
-        lbl_note.setWordWrap(True)
+        lbl_note.setWordWrap(True)  # Retour à la ligne automatique
         
         layout.addWidget(lbl_note)
         self.tab_attente.setLayout(layout)
     
     def init_tab_stats(self):
-        """Initialise l'onglet des statistiques"""
+        """Initialise l'onglet des statistiques avec une zone de texte enrichie."""
         layout = QVBoxLayout()
         
-        # Widget de texte pour les statistiques
+        # Zone de texte pour afficher les statistiques formatées en HTML
         self.text_stats = QTextEdit()
-        self.text_stats.setReadOnly(True)
+        self.text_stats.setReadOnly(True)  # Lecture seule
         self.text_stats.setStyleSheet("""
             QTextEdit {
                 background: white;
                 font-size: 14px;
-                border: 2px solid #4CAF50;
+                border: 2px solid #4CAF50;  /* Bordure verte */
                 border-radius: 10px;
                 padding: 20px;
             }
@@ -225,17 +242,17 @@ class ResultatsInterface(QWidget):
         self.tab_stats.setLayout(layout)
     
     def init_tab_avance(self):
-        """Initialise l'onglet des statistiques avancées"""
+        """Initialise l'onglet des statistiques avancées."""
         layout = QVBoxLayout()
         
-        # Widget de texte pour les statistiques avancées
+        # Zone de texte pour les statistiques avancées
         self.text_avance = QTextEdit()
         self.text_avance.setReadOnly(True)
         self.text_avance.setStyleSheet("""
             QTextEdit {
                 background: white;
                 font-size: 14px;
-                border: 2px solid #9C27B0;
+                border: 2px solid #9C27B0;  /* Bordure violette */
                 border-radius: 10px;
                 padding: 20px;
             }
@@ -245,59 +262,76 @@ class ResultatsInterface(QWidget):
         self.tab_avance.setLayout(layout)
     
     def charger_resultats(self):
-        """Charge les résultats depuis le serveur"""
+        """
+        Charge les résultats depuis le serveur via une connexion socket.
+        Envoie une requête au serveur et traite la réponse.
+        """
         try:
+            # Création et configuration du socket client
             client = socket.socket()
-            client.settimeout(5)
-            client.connect((SERVER_IP, SERVER_PORT))
+            client.settimeout(5)  # Timeout de 5 secondes
+            client.connect((SERVER_IP, SERVER_PORT))  # Connexion au serveur
             
-            # Envoyer la requête
+            # Envoi de la requête au format "GET_RESULTS:login"
             message = f"GET_RESULTS:{self.login}"
-            client.send(message.encode())
+            client.send(message.encode())  # Encodage en bytes
             
-            # Recevoir la réponse
+            # Réception de la réponse (max 8KB)
             reponse = client.recv(8192).decode()
-            client.close()
+            client.close()  # Fermeture de la connexion
             
+            # Traitement des différentes réponses possibles du serveur
             if reponse.startswith("RESULTS:"):
-                self.traiter_resultats(reponse[8:])
+                # Réponse contenant des données
+                self.traiter_resultats(reponse[8:])  # Extraction des données après "RESULTS:"
             elif reponse == "NO_RESULTS":
+                # Aucun résultat disponible (attribution non effectuée)
                 self.lbl_info.setText("⚠️ L'attribution n'a pas encore été effectuée par l'administrateur.")
                 self.vider_tables()
             elif reponse == "USER_NOT_FOUND":
+                # Utilisateur non trouvé sur le serveur
                 self.lbl_info.setText("❌ Utilisateur non trouvé.")
                 self.vider_tables()
             else:
+                # Autre erreur
                 self.lbl_info.setText(f"❌ Erreur: {reponse[:100]}")
                 self.vider_tables()
                 
         except Exception as e:
+            # Gestion des erreurs de connexion
             self.lbl_info.setText(f"❌ Erreur de connexion: {str(e)[:50]}")
-            print(f"Erreur: {e}")
+            print(f"Erreur: {e}")  # Log en console (à des fins de débogage)
     
     def traiter_resultats(self, donnees_str):
-        """Traite les données reçues du serveur"""
+        """
+        Traite les données brutes reçues du serveur.
+        
+        Args:
+            donnees_str (str): Chaîne de données à évaluer en structure Python
+        """
         try:
+            # Conversion de la chaîne en dictionnaire Python
+            # Utilisation de ast.literal_eval pour sécurité (pas d'exécution de code)
             donnees = ast.literal_eval(donnees_str)
             
-            # Structure attendue:
+            # Extraction des différentes parties des données
+            # Structure attendue du dictionnaire:
             # {
             #     'attributions': [liste des sujets attribués],
             #     'attente': [liste des sujets en attente],
-            #     'statistiques': {statistiques}
+            #     'statistiques': {dictionnaire de statistiques}
             # }
-            
-            attributions = donnees.get('attributions', [])
+            attributions = donnees.get('attributions', [])  # Liste, défaut: liste vide
             attente = donnees.get('attente', [])
             stats = donnees.get('statistiques', {})
             
-            # Mettre à jour l'interface
+            # Mise à jour des différents composants de l'interface
             self.afficher_attributions(attributions)
             self.afficher_attente(attente)
             self.afficher_statistiques(stats)
             self.afficher_statistiques_avancees(stats)
             
-            # Mettre à jour le message d'information
+            # Mise à jour du message d'information principal
             total = len(attributions) + len(attente)
             if attributions:
                 if attente:
@@ -310,75 +344,104 @@ class ResultatsInterface(QWidget):
                 self.lbl_info.setText("📝 Aucun résultat disponible pour le moment")
                 
         except Exception as e:
+            # Gestion des erreurs de traitement des données
             self.lbl_info.setText(f"❌ Erreur de traitement: {str(e)[:50]}")
-            print(f"Erreur traitement: {e}")
+            print(f"Erreur traitement: {e}")  # Log en console
     
     def afficher_attributions(self, attributions):
-        """Affiche les sujets attribués"""
+        """
+        Affiche les sujets attribués dans le tableau.
+        
+        Args:
+            attributions (list): Liste des sujets attribués
+                Format attendu: [titre, description, ordre, statut, date]
+        """
+        # Configuration du nombre de lignes du tableau
         self.table_attributions.setRowCount(len(attributions))
         
+        # Remplissage du tableau ligne par ligne
         for row, sujet in enumerate(attributions):
-            # Sujet: [titre, description, ordre, statut, date]
+            # Parcours des colonnes (0 à 4)
             for col in range(5):
+                # Récupération de la valeur (chaîne vide si non disponible)
                 valeur = sujet[col] if col < len(sujet) else ""
-                item = QTableWidgetItem(str(valeur))
+                item = QTableWidgetItem(str(valeur))  # Conversion en chaîne
                 
-                # Colorer selon le statut
-                if col == 3:  # Colonne statut
+                # Mise en forme conditionnelle basée sur le contenu
+                if col == 3:  # Colonne "Statut"
                     if "attribué" in str(valeur).lower():
-                        item.setForeground(QColor(0, 150, 0))
+                        item.setForeground(QColor(0, 150, 0))  # Vert pour "attribué"
                     elif "attente" in str(valeur).lower():
-                        item.setForeground(QColor(255, 140, 0))
+                        item.setForeground(QColor(255, 140, 0))  # Orange pour "attente"
                 
-                # Colorer selon l'ordre de préférence
-                if col == 2:  # Colonne choix #
+                # Coloration selon l'ordre de préférence
+                if col == 2:  # Colonne "Choix #"
                     try:
-                        ordre = int(valeur)
+                        ordre = int(valeur)  # Conversion en entier
                         if ordre == 1:
+                            # Premier choix: vert foncé avec fond vert clair
                             item.setForeground(QColor(0, 100, 0))
                             item.setBackground(QBrush(QColor(200, 255, 200)))
                         elif ordre <= 3:
+                            # Choix 2-3: bleu foncé
                             item.setForeground(QColor(0, 0, 150))
                         else:
+                            # Autres choix: gris
                             item.setForeground(QColor(100, 100, 100))
-                    except:
+                    except ValueError:
+                        # Si conversion échoue, pas de coloration
                         pass
                 
+                # Placement de l'item dans le tableau
                 self.table_attributions.setItem(row, col, item)
         
+        # Ajustement automatique de la largeur des colonnes
         self.table_attributions.resizeColumnsToContents()
     
     def afficher_attente(self, attente):
-        """Affiche les listes d'attente"""
+        """
+        Affiche les sujets en liste d'attente.
+        
+        Args:
+            attente (list): Liste des sujets en attente
+                Format attendu: [titre, description, ordre, position, capacite_total]
+        """
         self.table_attente.setRowCount(len(attente))
         
         for row, sujet in enumerate(attente):
-            # Sujet: [titre, description, ordre, position, capacite_total]
-            for col in range(5):
+            for col in range(5):  # Note: le tableau a 6 colonnes mais on traite 5 valeurs
                 valeur = sujet[col] if col < len(sujet) else ""
                 item = QTableWidgetItem(str(valeur))
                 
-                # Colorer selon la position
-                if col == 3:  # Colonne position
+                # Coloration selon la position dans la liste d'attente
+                if col == 3:  # Colonne "Position"
                     try:
-                        position = int(valeur)
+                        position = int(valeur)  # Position actuelle
+                        # Capacité totale (valeur à l'index 4)
                         capacite = int(sujet[4]) if len(sujet) > 4 else 10
                         
-                        if position <= capacite * 0.5:
-                            item.setForeground(QColor(0, 150, 0))
-                        elif position <= capacite:
-                            item.setForeground(QColor(255, 140, 0))
-                        else:
-                            item.setForeground(QColor(255, 50, 50))
-                    except:
-                        pass
+                        # Coloration conditionnelle:
+                        if position <= capacite * 0.5:  # Dans la première moitié
+                            item.setForeground(QColor(0, 150, 0))  # Vert
+                        elif position <= capacite:  # Dans la capacité mais après la moitié
+                            item.setForeground(QColor(255, 140, 0))  # Orange
+                        else:  # Au-delà de la capacité
+                            item.setForeground(QColor(255, 50, 50))  # Rouge
+                    except (ValueError, IndexError):
+                        pass  # Pas de coloration si erreur
                 
                 self.table_attente.setItem(row, col, item)
         
         self.table_attente.resizeColumnsToContents()
     
     def afficher_statistiques(self, stats):
-        """Affiche les statistiques"""
+        """
+        Affiche les statistiques formatées en HTML.
+        
+        Args:
+            stats (dict): Dictionnaire de statistiques
+        """
+        # Génération de HTML avec les données statistiques
         html = f"""
         <div style='font-family: Arial; font-size: 14px;'>
             <h2 style='color: #2196F3;'>📈 Vos Statistiques Personnelles</h2>
@@ -453,10 +516,16 @@ class ResultatsInterface(QWidget):
         </div>
         """
         
-        self.text_stats.setHtml(html)
+        self.text_stats.setHtml(html)  # Affichage du HTML
     
     def afficher_statistiques_avancees(self, stats):
-        """Affiche des statistiques plus détaillées"""
+        """
+        Affiche des statistiques plus détaillées et des conseils personnalisés.
+        
+        Args:
+            stats (dict): Dictionnaire de statistiques
+        """
+        # Structure HTML pour l'analyse avancée
         html = f"""
         <div style='font-family: Arial; font-size: 14px;'>
             <h2 style='color: #2196F3;'>📈 Analyse Détaillée</h2>
@@ -515,6 +584,7 @@ class ResultatsInterface(QWidget):
             <ul style='background: #FFF3E0; padding: 15px; border-radius: 8px; border-left: 4px solid #FF9800;'>
         """
         
+        # Génération de conseils personnalisés basés sur les statistiques
         conseils = []
         nb_choix = stats.get('nb_choix_total', 0)
         
@@ -530,7 +600,9 @@ class ResultatsInterface(QWidget):
         if len(conseils) == 0:
             conseils.append("<li><b>Excellent travail !</b> Votre stratégie de choix est optimale</li>")
         
-        html += '\n'.join(conseils)
+        html += '\n'.join(conseils)  # Ajout des conseils au HTML
+        
+        # Section finale du HTML
         html += """
             </ul>
             
@@ -544,29 +616,35 @@ class ResultatsInterface(QWidget):
         self.text_avance.setHtml(html)
     
     def vider_tables(self):
-        """Vide les tables"""
-        self.table_attributions.setRowCount(0)
+        """Vide tous les tableaux et zones de texte."""
+        self.table_attributions.setRowCount(0)  # 0 ligne = tableau vide
         self.table_attente.setRowCount(0)
-        self.text_stats.clear()
+        self.text_stats.clear()  # Efface le contenu HTML
         self.text_avance.clear()
     
     def retour_sujets(self):
-        """Retourne à la fenêtre des sujets"""
-        self.close()
-        self.parent_fenetre.show()
+        """Ferme cette fenêtre et retourne à la fenêtre parente (choix des sujets)."""
+        self.close()  # Ferme la fenêtre actuelle
+        self.parent_fenetre.show()  # Affiche la fenêtre parente
 
 
 # ============================
 # MODIFICATION dans Attribution_sujets_pyqt.py
 # ============================
-# Ajoutez cette ligne après les autres imports:
-# from resultats_interface import ResultatsInterface
-
-# Puis modifiez la méthode afficher_resultats dans FenetreChoixSujets:
 """
-def afficher_resultats(self):
-    Ouvre la fenêtre des résultats
-    print("DEBUG: Ouverture fenêtre résultats")
-    self.fenetre_resultats = ResultatsInterface(self.login, self)
-    self.fenetre_resultats.show()
+Instructions pour intégrer cette classe dans le fichier principal:
+
+1. Ajoutez cette ligne après les autres imports:
+   from resultats_interface import ResultatsInterface
+
+2. Modifiez la méthode afficher_resultats dans FenetreChoixSujets:
+   
+   def afficher_resultats(self):
+       # Ouvre la fenêtre des résultats
+       print("DEBUG: Ouverture fenêtre résultats")
+       self.fenetre_resultats = ResultatsInterface(self.login, self)
+       self.fenetre_resultats.show()
+       
+Note: Ces commentaires sont des instructions pour l'intégration, 
+pas du code exécuté dans ce fichier.
 """

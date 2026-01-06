@@ -1,11 +1,35 @@
-import sqlite3, os
+"""
+Module de gestion de base de données pour le système d'attribution de sujets.
+
+Ce module gère toutes les opérations de base de données SQLite pour :
+- L'initialisation de la base de données
+- La gestion des utilisateurs
+- La gestion des sujets
+- L'enregistrement des choix et préférences
+- Le stockage des résultats d'attribution
+- Les statistiques et rapports
+"""
+
+import sqlite3
+import os
 from datetime import datetime
 
+# Chemin vers la base de données SQLite
 DB_PATH = os.path.join("data", "base.sqlite")
 
+# Création du dossier data s'il n'existe pas
 os.makedirs("data", exist_ok=True)
 
 def init_db():
+    """
+    Initialise la base de données avec toutes les tables nécessaires.
+    
+    Cette fonction :
+    1. Crée les tables si elles n'existent pas
+    2. Ajoute des données par défaut
+    3. Crée un compte administrateur par défaut
+    4. Gère la compatibilité avec les versions antérieures
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -48,9 +72,10 @@ def init_db():
     ''')
     
     # Ajouter la colonne ordre_preference si elle n'existe pas déjà
+    # Ceci permet la compatibilité avec les versions antérieures
     try:
         cursor.execute("ALTER TABLE choix_utilisateurs ADD COLUMN ordre_preference INTEGER DEFAULT 1")
-        print("✅ Colonne 'ordre_preference' ajoutée à la table choix_utilisateurs")
+        print(" Colonne 'ordre_preference' ajoutée à la table choix_utilisateurs")
     except sqlite3.OperationalError:
         # La colonne existe déjà, c'est normal
         pass
@@ -89,7 +114,7 @@ def init_db():
                     VALUES (?, ?, ?, ?)
                 """, (titre, desc, capacite, date_limite))
             except sqlite3.IntegrityError:
-                pass
+                pass  # Ignorer les erreurs d'intégrité (duplicates)
     
     # Vérifier et créer un admin par défaut
     cursor.execute("SELECT COUNT(*) FROM users WHERE login = 'admin'")
@@ -101,21 +126,27 @@ def init_db():
                 INSERT INTO users (nom, prenom, login, password)
                 VALUES (?, ?, ?, ?)
             """, ("Admin", "System", "admin", "admin123"))
-            print("✅ Compte admin créé par défaut")
+            print("Compte admin créé par défaut")
         except sqlite3.IntegrityError:
-            pass
+            pass  # Le compte existe déjà
     
     conn.commit()
     conn.close()
     
-    print("✅ Base de données initialisée avec les tables nécessaires")
+    print("Base de données initialisée avec les tables nécessaires")
 
 # ============================
 # FONCTIONS POUR LES SUJETS (ADMIN)
 # ============================
 
 def get_tous_sujets():
-    """Récupère tous les sujets de la base de données"""
+    """
+    Récupère tous les sujets de la base de données.
+    
+    Returns:
+        list: Liste de tuples contenant toutes les informations des sujets
+              Format: (id, titre, description, capacite_max, date_limite, actif)
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("""
@@ -127,7 +158,18 @@ def get_tous_sujets():
         return c.fetchall()
 
 def ajouter_sujet(titre, description, capacite_max, date_limite):
-    """Ajoute un nouveau sujet dans la base"""
+    """
+    Ajoute un nouveau sujet dans la base de données.
+    
+    Args:
+        titre (str): Titre du sujet
+        description (str): Description détaillée du sujet
+        capacite_max (int): Nombre maximum d'étudiants pouvant choisir ce sujet
+        date_limite (str): Date limite de choix au format 'YYYY-MM-DD'
+    
+    Returns:
+        bool: True si l'ajout a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -141,7 +183,20 @@ def ajouter_sujet(titre, description, capacite_max, date_limite):
         return False
 
 def modifier_sujet(sujet_id, titre, description, capacite_max, date_limite, actif):
-    """Modifie un sujet existant"""
+    """
+    Modifie un sujet existant dans la base de données.
+    
+    Args:
+        sujet_id (int): ID du sujet à modifier
+        titre (str): Nouveau titre
+        description (str): Nouvelle description
+        capacite_max (int): Nouvelle capacité maximale
+        date_limite (str): Nouvelle date limite
+        actif (bool): Nouveau statut actif/inactif
+    
+    Returns:
+        bool: True si la modification a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -151,31 +206,53 @@ def modifier_sujet(sujet_id, titre, description, capacite_max, date_limite, acti
                     date_limite = ?, actif = ?
                 WHERE id = ?
             """, (titre, description, capacite_max, date_limite, actif, sujet_id))
-            return c.rowcount > 0
+            return c.rowcount > 0  # Retourne True si au moins une ligne a été modifiée
     except Exception as e:
         print(f"Erreur lors de la modification du sujet: {e}")
         return False
 
 def supprimer_sujet(sujet_id):
-    """Supprime un sujet de la base"""
+    """
+    Supprime un sujet de la base de données.
+    
+    Args:
+        sujet_id (int): ID du sujet à supprimer
+    
+    Returns:
+        bool: True si la suppression a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             c.execute("DELETE FROM sujets WHERE id = ?", (sujet_id,))
-            return c.rowcount > 0
+            return c.rowcount > 0  # Retourne True si au moins une ligne a été supprimée
     except Exception as e:
         print(f"Erreur lors de la suppression du sujet: {e}")
         return False
 
 def get_sujet_par_id(sujet_id):
-    """Récupère un sujet spécifique par son ID"""
+    """
+    Récupère un sujet spécifique par son ID.
+    
+    Args:
+        sujet_id (int): ID du sujet à récupérer
+    
+    Returns:
+        tuple: Tuple contenant toutes les informations du sujet, ou None si non trouvé
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM sujets WHERE id = ?", (sujet_id,))
         return c.fetchone()
 
 def get_tous_utilisateurs():
-    """Récupère tous les utilisateurs avec leur nombre de choix"""
+    """
+    Récupère tous les utilisateurs avec leur nombre de choix.
+    
+    Returns:
+        list: Liste de tuples contenant les informations utilisateur et nombre de choix
+              Format: (id, nom, prenom, login, nb_choix)
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("""
@@ -189,7 +266,15 @@ def get_tous_utilisateurs():
         return c.fetchall()
 
 def get_nb_choix_utilisateur(user_id):
-    """Récupère le nombre de choix d'un utilisateur"""
+    """
+    Récupère le nombre de choix d'un utilisateur.
+    
+    Args:
+        user_id (int): ID de l'utilisateur
+    
+    Returns:
+        int: Nombre de choix effectués par l'utilisateur
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM choix_utilisateurs WHERE user_id = ?", (user_id,))
@@ -200,6 +285,18 @@ def get_nb_choix_utilisateur(user_id):
 # ============================
 
 def register_user(nom, prenom, login, password):
+    """
+    Enregistre un nouvel utilisateur dans la base de données.
+    
+    Args:
+        nom (str): Nom de famille
+        prenom (str): Prénom
+        login (str): Identifiant unique (email)
+        password (str): Mot de passe
+    
+    Returns:
+        bool: True si l'enregistrement a réussi, False sinon (login déjà existant)
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -209,9 +306,19 @@ def register_user(nom, prenom, login, password):
             )
         return True
     except sqlite3.IntegrityError:
-        return False
+        return False  # Login déjà existant
 
 def verifier_identifiants(login, password):
+    """
+    Vérifie si les identifiants sont valides.
+    
+    Args:
+        login (str): Identifiant de l'utilisateur
+        password (str): Mot de passe
+    
+    Returns:
+        bool: True si les identifiants sont valides, False sinon
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("SELECT 1 FROM users WHERE login=? AND password=? LIMIT 1", (login, password))
@@ -219,9 +326,29 @@ def verifier_identifiants(login, password):
     return row is not None
 
 def login_user(login, password):
+    """
+    Alias pour verifier_identifiants (maintenu pour compatibilité).
+    
+    Args:
+        login (str): Identifiant de l'utilisateur
+        password (str): Mot de passe
+    
+    Returns:
+        bool: True si les identifiants sont valides, False sinon
+    """
     return verifier_identifiants(login, password)
 
 def changer_mot_de_passe(login, nouveau_password):
+    """
+    Change le mot de passe d'un utilisateur.
+    
+    Args:
+        login (str): Identifiant de l'utilisateur
+        nouveau_password (str): Nouveau mot de passe
+    
+    Returns:
+        bool: True si le changement a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -231,26 +358,40 @@ def changer_mot_de_passe(login, nouveau_password):
             )
             if c.rowcount > 0:
                 return True
-            return False
+            return False  # Aucun utilisateur trouvé avec ce login
     except Exception as e:
         print(f"Erreur lors du changement de mot de passe: {e}")
         return False
 
 def supprimer_compte(login):
+    """
+    Supprime définitivement un compte utilisateur.
+    
+    Args:
+        login (str): Identifiant de l'utilisateur à supprimer
+    
+    Returns:
+        bool: True si la suppression a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             c.execute("DELETE FROM users WHERE login = ?", (login,))
             if c.rowcount > 0:
                 return True
-            return False
+            return False  # Aucun utilisateur trouvé avec ce login
     except Exception as e:
         print(f"Erreur lors de la suppression du compte: {e}")
         return False
 
-# Fonction existante maintenue pour compatibilité
 def get_subjects():
-    """Pour l'interface stagiaire - récupère les sujets actifs"""
+    """
+    Récupère tous les sujets actifs (pour l'interface stagiaire).
+    
+    Returns:
+        list: Liste de tuples contenant les informations des sujets actifs
+              Format: (id, titre, description)
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("""
@@ -262,7 +403,16 @@ def get_subjects():
         return c.fetchall()
 
 def enregistrer_choix_sujets(login, sujets_ids):
-    """Enregistre les choix de sujets pour un utilisateur (ancienne méthode avec ordre implicite)"""
+    """
+    Enregistre les choix de sujets pour un utilisateur (ancienne méthode avec ordre implicite).
+    
+    Args:
+        login (str): Identifiant de l'utilisateur
+        sujets_ids (list): Liste des IDs des sujets choisis (ordre de la liste = ordre de préférence)
+    
+    Returns:
+        bool: True si l'enregistrement a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -272,7 +422,7 @@ def enregistrer_choix_sujets(login, sujets_ids):
             user_row = c.fetchone()
             
             if not user_row:
-                return False
+                return False  # Utilisateur non trouvé
                 
             user_id = user_row[0]
             
@@ -292,7 +442,17 @@ def enregistrer_choix_sujets(login, sujets_ids):
         return False
 
 def enregistrer_preferences_sujets(login, preferences_dict):
-    """Enregistre les préférences de sujets pour un utilisateur avec ordres spécifiques"""
+    """
+    Enregistre les préférences de sujets pour un utilisateur avec ordres spécifiques.
+    
+    Args:
+        login (str): Identifiant de l'utilisateur
+        preferences_dict (dict): Dictionnaire {sujet_id: ordre_preference}
+                                Exemple: {1: 3, 2: 1, 3: 2}
+    
+    Returns:
+        bool: True si l'enregistrement a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -317,10 +477,10 @@ def enregistrer_preferences_sujets(login, preferences_dict):
                     VALUES (?, ?, ?)
                 """, (user_id, sujet_id, ordre))
             
-            print(f"✅ Préférences enregistrées pour {login}: {preferences_dict}")
+            print(f" Préférences enregistrées pour {login}: {preferences_dict}")
             return True
     except Exception as e:
-        print(f"❌ Erreur enregistrement préférences: {e}")
+        print(f" Erreur enregistrement préférences: {e}")
         return False
 
 # ============================
@@ -328,7 +488,11 @@ def enregistrer_preferences_sujets(login, preferences_dict):
 # ============================
 
 def creer_table_resultats():
-    """Crée la table des résultats d'attribution si elle n'existe pas"""
+    """
+    Crée la table des résultats d'attribution si elle n'existe pas.
+    
+    Cette fonction garantit que la table existe avant d'être utilisée.
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("""
@@ -346,10 +510,21 @@ def creer_table_resultats():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
-        print("✅ Table resultats_attribution créée/vérifiée")
+        print("Table resultats_attribution créée/vérifiée")
 
 def get_resultats_par_utilisateur(login):
-    """Récupère tous les résultats d'un utilisateur"""
+    """
+    Récupère tous les résultats d'attribution pour un utilisateur spécifique.
+    
+    Args:
+        login (str): Identifiant de l'utilisateur
+    
+    Returns:
+        dict: Dictionnaire contenant:
+            - 'attributions': Liste des sujets attribués
+            - 'attente': Liste des sujets en attente
+            - 'statistiques': Statistiques personnelles de l'utilisateur
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         
@@ -387,7 +562,7 @@ def get_resultats_par_utilisateur(login):
                 row[0],  # titre
                 row[1] or "Pas de description",  # description
                 row[2],  # ordre_preference
-                "✅ Attribué",  # statut formaté
+                " Attribué",  # statut formaté
                 row[4]   # date
             ])
         
@@ -407,7 +582,7 @@ def get_resultats_par_utilisateur(login):
         
         attente = []
         for row in c.fetchall():
-            # Calculer l'estimation
+            # Calculer l'estimation de chances en fonction de la position
             position = row[3]
             capacite = row[4]
             if position <= capacite:
@@ -452,6 +627,7 @@ def get_resultats_par_utilisateur(login):
         meilleur_choix = stats_row[3] if stats_row and stats_row[3] else "N/A"
         premier_choix_obtenu = bool(premier_row and premier_row[0] > 0)
         
+        # Calcul du taux de réussite
         taux_reussite = f"{(nb_attribues / nb_total * 100):.1f}%" if nb_total > 0 else "0%"
         
         stats = {
@@ -471,7 +647,18 @@ def get_resultats_par_utilisateur(login):
         }
 
 def sauvegarder_resultats(attributions, listes_attente):
-    """Sauvegarde les résultats d'attribution dans la base"""
+    """
+    Sauvegarde les résultats d'attribution dans la base de données.
+    
+    Args:
+        attributions (dict): Dictionnaire des attributions par sujet
+                           Format: {sujet_id: {'attribues': [list_of_users]}}
+        listes_attente (dict): Dictionnaire des listes d'attente par sujet
+                              Format: {sujet_id: [list_of_users_in_waiting]}
+    
+    Returns:
+        bool: True si la sauvegarde a réussi, False sinon
+    """
     try:
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
@@ -493,7 +680,7 @@ def sauvegarder_resultats(attributions, listes_attente):
                         attribution['prenom'],
                         attribution['ordre_preference'],
                         'attribue',
-                        None
+                        None  # Pas de position en liste d'attente pour les attribués
                     ))
             
             # Insérer les listes d'attente
@@ -510,18 +697,29 @@ def sauvegarder_resultats(attributions, listes_attente):
                         attente['prenom'],
                         attente['ordre_preference'],
                         'attente',
-                        i + 1
+                        i + 1  # Position commence à 1
                     ))
             
             conn.commit()
-            print(f"✅ {c.rowcount} résultats sauvegardés")
+            print(f" {c.rowcount} résultats sauvegardés")
             return True
     except Exception as e:
-        print(f"❌ Erreur lors de la sauvegarde des résultats: {e}")
+        print(f" Erreur lors de la sauvegarde des résultats: {e}")
         return False
 
 def get_statistiques_avancees():
-    """Récupère les statistiques avancées"""
+    """
+    Récupère les statistiques avancées sur l'attribution.
+    
+    Returns:
+        dict: Dictionnaire contenant diverses statistiques :
+            - 'nb_attribues': Nombre d'utilisateurs ayant reçu une attribution
+            - 'nb_en_attente': Nombre d'utilisateurs en liste d'attente
+            - 'sujets_populaires': Liste des sujets les plus choisis
+            - 'sujets_moins_demandes': Liste des sujets les moins choisis
+            - 'moyenne_choix': Nombre moyen de choix par utilisateur
+            - 'taux_satisfaction': Pourcentage d'utilisateurs ayant obtenu leur premier choix
+    """
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         
@@ -532,7 +730,7 @@ def get_statistiques_avancees():
         c.execute("SELECT COUNT(DISTINCT user_id) FROM resultats_attribution WHERE statut = 'attente'")
         nb_en_attente = c.fetchone()[0]
         
-        # Sujets les plus populaires
+        # Sujets les plus populaires (top 3)
         c.execute("""
             SELECT 
                 s.titre,
@@ -546,7 +744,7 @@ def get_statistiques_avancees():
         """)
         sujets_populaires = c.fetchall()
         
-        # Sujets les moins demandés
+        # Sujets les moins demandés (bottom 3)
         c.execute("""
             SELECT 
                 s.titre,
@@ -571,7 +769,7 @@ def get_statistiques_avancees():
         """)
         moyenne_choix = c.fetchone()[0] or 0
         
-        # Taux de satisfaction (1er choix)
+        # Taux de satisfaction (1er choix obtenu)
         c.execute("""
             SELECT 
                 COUNT(*) as total,
@@ -593,4 +791,5 @@ def get_statistiques_avancees():
 # ============================
 # INITIALISATION DE LA TABLE DES RÉSULTATS
 # ============================
+# S'assure que la table des résultats existe au démarrage
 creer_table_resultats()

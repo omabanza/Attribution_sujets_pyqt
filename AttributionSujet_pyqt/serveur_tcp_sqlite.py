@@ -1,32 +1,44 @@
-import socket
-import threading
-import signal
-import sys
-import sqlite3
+import socket  # Module pour les communications réseau via sockets
+import threading  # Module pour gérer les connexions simultanées avec des threads
+import signal  # Module pour gérer les signaux système (ex: Ctrl+C)
+import sys  # Module système pour interagir avec l'interpréteur Python
+import sqlite3  # Module pour interagir avec la base de données SQLite
 from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants, changer_mot_de_passe, supprimer_compte
 from module_Attribution_sujets_pyqt import get_resultats_par_utilisateur, get_statistiques_avancees
+
 # ============================
 # Configuration administrateur
 # ============================
-ADMIN_LOGIN = "admin"
-ADMIN_PASSWORD = "admin123"
-DB_PATH = "data/base.sqlite"  # Ajout du chemin de la base de données
+ADMIN_LOGIN = "admin"  # Identifiant administrateur par défaut
+ADMIN_PASSWORD = "admin123"  # Mot de passe administrateur par défaut
+DB_PATH = "data/base.sqlite"  # Chemin vers le fichier de base de données
 
 # ============================
 # Gestion des clients
 # ============================
 
 def gerer_client(conn, addr):
+    """
+    Gère la connexion d'un client.
+    Cette fonction est exécutée dans un thread séparé pour chaque client.
+    
+    Args:
+        conn (socket): L'objet socket de connexion au client
+        addr (tuple): Tuple contenant l'adresse IP et le port du client
+    """
     print(f"\n=== NOUVELLE CONNEXION de {addr} ===")
     try:
         while True:
             try:
                 print("Attente de données du client...")
+                # Réception des données du client (max 1024 octets)
                 data = conn.recv(1024)
                 if not data:
+                    # Le client a fermé la connexion
                     print(f"Client {addr} a fermé la connexion")
                     break
 
+                # Décodage du message reçu
                 message = data.decode("utf-8").strip()
                 print(f"Message reçu : '{message}'")
                 print(f"Longueur : {len(message)} octets")
@@ -35,7 +47,7 @@ def gerer_client(conn, addr):
                 # REQUÊTES ADMINISTRATEUR
                 # ============================
                 
-                # Obtenir tous les sujets
+                # Obtenir tous les sujets (tous statuts)
                 if message == "GET_ALL_SUBJECTS":
                     print(">>> Requête: GET_ALL_SUBJECTS")
                     try:
@@ -89,12 +101,12 @@ def gerer_client(conn, addr):
                         try:
                             capacite_int = int(capacite_max)
                         except ValueError:
-                            conn.sendall("ERROR:Capacité maximale doit être un nombre".encode("utf-8"))
+                            conn.sendall("ERROR:Capacite maximale doit etre un nombre".encode("utf-8"))
                             continue
                         
                         if ajouter_sujet(titre, description, capacite_int, date_limite):
                             conn.sendall("SUBJECT_ADDED".encode("utf-8"))
-                            print("<<< Sujet ajouté avec succès")
+                            print("<<< Sujet ajoute avec succes")
                         else:
                             conn.sendall("ADD_FAILED".encode("utf-8"))
                     except Exception as e:
@@ -139,7 +151,7 @@ def gerer_client(conn, addr):
                     continue
                 
                 # ============================
-                # NOUVELLE REQUÊTE POUR STAGIAIRES
+                # NOUVELLE REQUETE POUR STAGIAIRES
                 # ============================
                 
                 # Obtenir les sujets actifs pour les stagiaires
@@ -156,7 +168,7 @@ def gerer_client(conn, addr):
                     continue
                 
                 # ============================
-                # REQUÊTES EXISTANTES
+                # REQUETES EXISTANTES
                 # ============================
                 
                 # Format : REGISTER:nom:prenom:login:mdp
@@ -170,10 +182,10 @@ def gerer_client(conn, addr):
                     print(f"   Inscription: {nom} {prenom} ({login})")
                     if register_user(nom, prenom, login, mdp):
                         conn.sendall("INSCRIPTION_OK".encode("utf-8"))
-                        print("<<< Inscription réussie")
+                        print("<<< Inscription reussie")
                     else:
                         conn.sendall("LOGIN_EXISTE".encode("utf-8"))
-                        print("<<< Login déjà existant")
+                        print("<<< Login deja existant")
 
                 # Format : CHANGE_PASSWORD:login:nouveau_mdp
                 elif message.startswith("CHANGE_PASSWORD:"):
@@ -204,7 +216,7 @@ def gerer_client(conn, addr):
                         conn.sendall("DELETE_FAILED".encode("utf-8"))
                 
                 # ============================
-                # NOUVELLE SECTION POUR GÉRER LES PRÉFÉRENCES
+                # NOUVELLE SECTION POUR GERER LES PREFERENCES
                 # ============================
                 
                 # Format : PREFERENCES:login:id1=ordre1,id2=ordre2,id3=ordre3...
@@ -222,12 +234,12 @@ def gerer_client(conn, addr):
                         
                         # DEBUG: Afficher les données reçues
                         print(f"   Login: {login}")
-                        print(f"   Préférences string: '{preferences_str}'")
+                        print(f"   Preferences string: '{preferences_str}'")
                         
                         # Vérifier si la chaîne n'est pas vide
                         if not preferences_str.strip():
                             conn.sendall("PREFERENCES_VIDES".encode("utf-8"))
-                            print("<<< Aucune préférence spécifiée")
+                            print("<<< Aucune preference specifiee")
                             continue
                         
                         # Parser les préférences au format id=ordre
@@ -263,21 +275,21 @@ def gerer_client(conn, addr):
                                 
                                 preferences_dict[sujet_id] = ordre
                             
-                            print(f"   Préférences parsées: {preferences_dict}")
+                            print(f"   Preferences parsees: {preferences_dict}")
                             
                             # Vérifier qu'il n'y a pas de doublons dans les ordres
                             ordres = list(preferences_dict.values())
                             if len(ordres) != len(set(ordres)):
-                                print(f"   Doublons détectés dans les ordres: {ordres}")
+                                print(f"   Doublons detectes dans les ordres: {ordres}")
                                 conn.sendall("DOUBLONS_DETECTES".encode("utf-8"))
                                 continue
                             
                             # Trier les préférences par ordre croissant pour vérification
                             preferences_triees = dict(sorted(preferences_dict.items(), key=lambda x: x[1]))
-                            print(f"   Préférences triées: {preferences_triees}")
+                            print(f"   Preferences triees: {preferences_triees}")
                             
                         except Exception as e:
-                            print(f"   Erreur parsing préférences: {e}")
+                            print(f"   Erreur parsing preferences: {e}")
                             import traceback
                             traceback.print_exc()
                             conn.sendall("PREFERENCES_INVALIDES".encode("utf-8"))
@@ -286,11 +298,11 @@ def gerer_client(conn, addr):
                         # Enregistrer les préférences dans la base de données
                         if enregistrer_preferences_sujets(login, preferences_dict):
                             conn.sendall("PREFERENCES_ENREGISTREES".encode("utf-8"))
-                            print(f"<<< {len(preferences_dict)} préférences enregistrées pour {login}")
-                            print(f"<<< Détail: {preferences_dict}")
+                            print(f"<<< {len(preferences_dict)} preferences enregistrees pour {login}")
+                            print(f"<<< Detail: {preferences_dict}")
                         else:
                             conn.sendall("PREFERENCES_ECHEC".encode("utf-8"))
-                            print("<<< Échec de l'enregistrement des préférences")
+                            print("<<< Echec de l'enregistrement des preferences")
                             
                     except Exception as e:
                         print(f"   Exception PREFERENCES: {e}")
@@ -299,7 +311,7 @@ def gerer_client(conn, addr):
                         conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
                     continue
 
-                # Format : CHOIX_SUJETS:login:id1,id2,id3 (SECTION AMÉLIORÉE)
+                # Format : CHOIX_SUJETS:login:id1,id2,id3 (SECTION AMELIOREE)
                 elif message.startswith("CHOIX_SUJETS:"):
                     print(">>> Requête: CHOIX_SUJETS")
                     try:
@@ -317,7 +329,7 @@ def gerer_client(conn, addr):
                         # Vérifier si la chaîne n'est pas vide
                         if not sujets_ids_str.strip():
                             conn.sendall("CHOIX_VIDE".encode("utf-8"))
-                            print("<<< Aucun sujet sélectionné")
+                            print("<<< Aucun sujet selectionne")
                             continue
                             
                         # Convertir en liste d'entiers
@@ -332,10 +344,10 @@ def gerer_client(conn, addr):
                         
                         if enregistrer_choix_sujets(login, sujets_ids):
                             conn.sendall("CHOIX_ENREGISTRE".encode("utf-8"))
-                            print(f"<<< {len(sujets_ids)} choix enregistrés pour {login}")
+                            print(f"<<< {len(sujets_ids)} choix enregistres pour {login}")
                         else:
                             conn.sendall("CHOIX_ECHEC".encode("utf-8"))
-                            print("<<< Échec de l'enregistrement")
+                            print("<<< Echec de l'enregistrement")
                     except Exception as e:
                         print(f"   Exception CHOIX_SUJETS: {e}")
                         import traceback
@@ -344,10 +356,10 @@ def gerer_client(conn, addr):
                     continue
                 
                 # ============================
-                # NOUVELLES REQUÊTES POUR L'ALGORITHME D'ATTRIBUTION
+                # NOUVELLES REQUETES POUR L'ALGORITHME D'ATTRIBUTION
                 # ============================
                 
-                # Obtenir les résultats pour un stagiaire (MODIFIÉ)
+                # Obtenir les résultats pour un stagiaire (MODIFIE)
                 elif message.startswith("GET_RESULTS:"):
                     print(">>> Requête: GET_RESULTS")
                     try:
@@ -357,26 +369,26 @@ def gerer_client(conn, addr):
                             continue
                             
                         login = parts[1]
-                        print(f"   Recherche des résultats pour: {login}")
+                        print(f"   Recherche des resultats pour: {login}")
                         
                         # Utiliser la fonction du module
                         results = get_resultats_par_utilisateur(login)
                         
                         # Vérifier si des résultats existent
                         if not results['attributions'] and not results['attente']:
-                            print("   Aucun résultat disponible")
+                            print("   Aucun resultat disponible")
                             conn.sendall("NO_RESULTS".encode("utf-8"))
                         else:
                             response = "RESULTS:" + str(results)
                             conn.sendall(response.encode("utf-8"))
-                            print(f"<<< Résultats envoyés: {len(results['attributions'])} attributions, {len(results['attente'])} en attente")
+                            print(f"<<< Resultats envoyes: {len(results['attributions'])} attributions, {len(results['attente'])} en attente")
                             
                     except Exception as e:
                         print(f"   Erreur GET_RESULTS: {e}")
                         conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
                     continue
                 
-                # Lancer l'algorithme d'attribution (SECTION CORRIGÉE)
+                # Lancer l'algorithme d'attribution (SECTION CORRIGEE)
                 elif message == "RUN_ATTRIBUTION":
                     print(">>> Requête: RUN_ATTRIBUTION")
                     try:
@@ -386,7 +398,7 @@ def gerer_client(conn, addr):
                         
                         if success:
                             conn.sendall("ATTRIBUTION_DONE".encode("utf-8"))
-                            print("<<< Attribution effectuée avec succès")
+                            print("<<< Attribution effectuee avec succes")
                         else:
                             # Si sujets_dict est None, c'est que la date limite n'est pas passée
                             if sujets_dict is None and utilisateurs_dict is None:
@@ -394,21 +406,21 @@ def gerer_client(conn, addr):
                                 print("<<< Date limite non atteinte")
                             else:
                                 conn.sendall("ATTRIBUTION_FAILED".encode("utf-8"))
-                                print("<<< Échec de l'attribution")
+                                print("<<< Echec de l'attribution")
                     except Exception as e:
                         error_msg = f"ERROR:Erreur lors de l'attribution : {str(e)}"
                         conn.sendall(error_msg.encode("utf-8"))
                         print(f"<<< Erreur: {e}")
                     continue
                 
-                # Obtenir les statistiques avancées (MODIFIÉ)
+                # Obtenir les statistiques avancées (MODIFIE)
                 elif message == "GET_ADVANCED_STATS":
                     print(">>> Requête: GET_ADVANCED_STATS")
                     try:
                         stats = get_statistiques_avancees()
                         response = "ADVANCED_STATS:" + str(stats)
                         conn.sendall(response.encode("utf-8"))
-                        print("<<< Statistiques avancées envoyées")
+                        print("<<< Statistiques avancees envoyees")
                     except Exception as e:
                         print(f"   Erreur GET_ADVANCED_STATS: {e}")
                         conn.sendall(f"ERROR:{str(e)}".encode("utf-8"))
@@ -428,20 +440,20 @@ def gerer_client(conn, addr):
                     
                     # Vérifier si c'est l'admin
                     if login == ADMIN_LOGIN and mdp == ADMIN_PASSWORD:
-                        print("   >>> ADMIN détecté")
+                        print("   >>> ADMIN detecte")
                         conn.sendall("ADMIN_OK".encode("utf-8"))
-                        print("<<< Réponse: ADMIN_OK")
+                        print("<<< Reponse: ADMIN_OK")
                     else:
-                        print("   >>> Vérification des identifiants...")
+                        print("   >>> Verification des identifiants...")
                         resultat = verifier_identifiants(login, mdp)
-                        print(f"   >>> Résultat: {resultat}")
+                        print(f"   >>> Resultat: {resultat}")
                         
                         if resultat:
-                            conn.sendall("OK".encode("utf-8"))  # IMPORTANT: doit être "OK" exactement
-                            print("<<< Réponse: OK")
+                            conn.sendall("OK".encode("utf-8"))  # IMPORTANT: doit etre "OK" exactement
+                            print("<<< Reponse: OK")
                         else:
                             conn.sendall("NOK".encode("utf-8"))  # Changé de "ERREUR" à "NOK"
-                            print("<<< Réponse: NOK")
+                            print("<<< Reponse: NOK")
                 
                 # Format invalide
                 else:
@@ -449,13 +461,13 @@ def gerer_client(conn, addr):
                     conn.sendall("FORMAT_INVALIDE".encode("utf-8"))
 
             except ConnectionResetError:
-                print(f"Connexion réinitialisée par le client {addr}")
+                print(f"Connexion reinitialisee par le client {addr}")
                 break
             except Exception as e:
                 print(f"Erreur lors du traitement du client {addr}: {e}")
                 break
     finally:
-        print(f"=== DÉCONNEXION de {addr} ===\n")
+        print(f"=== DECONNEXION de {addr} ===\n")
         try:
             conn.close()
         except Exception:
@@ -466,9 +478,18 @@ def gerer_client(conn, addr):
 # ============================
 
 def get_results_for_user(login):
-    """Récupère les résultats d'un utilisateur"""
+    """
+    Récupère les résultats d'un utilisateur.
+    Cette fonction est une alternative à celle du module.
+    
+    Args:
+        login (str): Login de l'utilisateur
+        
+    Returns:
+        dict: Dictionnaire contenant les attributions, l'attente et les statistiques
+    """
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row  # Pour accéder aux colonnes par nom
     cursor = conn.cursor()
     
     # Récupérer l'ID utilisateur
@@ -533,7 +554,7 @@ def get_results_for_user(login):
         'taux_reussite': f"{stats_row['nb_attribues'] / stats_row['nb_total'] * 100:.1f}%" if stats_row and stats_row['nb_total'] > 0 else "0%",
         'meilleur_choix': stats_row['meilleur_choix'] if stats_row else "N/A",
         'premier_choix_obtenu': bool(stats_row['premier_choix_obtenu']) if stats_row else False,
-        'position_moyenne': "N/A"  # À calculer si besoin
+        'position_moyenne': "N/A"  # A calculer si besoin
     }
     
     conn.close()
@@ -545,12 +566,17 @@ def get_results_for_user(login):
     }
 
 def get_advanced_stats():
-    """Récupère les statistiques avancées"""
+    """
+    Récupère les statistiques avancées pour l'ensemble du système.
+    
+    Returns:
+        dict: Dictionnaire contenant diverses statistiques globales
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # Sujets les plus populaires
+    # Sujets les plus populaires (avec le plus de choix)
     cursor.execute("""
         SELECT 
             s.titre,
@@ -564,7 +590,7 @@ def get_advanced_stats():
     """)
     sujets_populaires = cursor.fetchall()
     
-    # Sujets les moins demandés
+    # Sujets les moins demandés (avec le moins de choix)
     cursor.execute("""
         SELECT 
             s.titre,
@@ -578,7 +604,7 @@ def get_advanced_stats():
     """)
     sujets_moins_demandes = cursor.fetchall()
     
-    # Moyenne de choix
+    # Moyenne de choix par utilisateur
     cursor.execute("""
         SELECT AVG(nb_choix) 
         FROM (
@@ -590,7 +616,7 @@ def get_advanced_stats():
     moyenne_choix_result = cursor.fetchone()
     moyenne_choix = moyenne_choix_result[0] if moyenne_choix_result and moyenne_choix_result[0] else 0
     
-    # Taux de satisfaction (1er choix)
+    # Taux de satisfaction (pourcentage d'utilisateurs qui ont obtenu leur 1er choix)
     cursor.execute("""
         SELECT 
             COUNT(*) as total,
@@ -616,54 +642,65 @@ def get_advanced_stats():
 # Fonction principale
 # ============================
 def main():
+    """
+    Fonction principale du serveur.
+    Initialise la base de données et démarre le serveur socket.
+    """
+    # Initialiser la base de données
     init_db()
+    
+    # Configuration du serveur
     host, port = "127.0.0.1", 55555
     serveur = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serveur.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    serveur.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permet de réutiliser l'adresse
 
     # Handler pour fermer proprement la socket sur SIGINT/SIGTERM
     def _close_and_exit(signum, frame):
-        print("\n⚠️ Signal reçu, fermeture du serveur...")
+        print("\nSignal recu, fermeture du serveur...")
         try:
             serveur.close()
         except Exception:
             pass
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, _close_and_exit)
-    signal.signal(signal.SIGTERM, _close_and_exit)
+    # Configuration des gestionnaires de signaux
+    signal.signal(signal.SIGINT, _close_and_exit)   # Ctrl+C
+    signal.signal(signal.SIGTERM, _close_and_exit)  # Signal de terminaison
 
     try:
         serveur.bind((host, port))
     except OSError as e:
-        print(f"❌ Impossible de binder {host}:{port} -> {e}")
-        print("Vérifie qu'aucun autre processus n'utilise le port.")
+        print(f"Impossible de binder {host}:{port} -> {e}")
+        print("Verifie qu'aucun autre processus n'utilise le port.")
         serveur.close()
         return
 
+    # Démarrage de l'écoute (file d'attente de 5 connexions)
     serveur.listen(5)
-    print(f"✅ Serveur en écoute sur {host}:{port}")
-    print(f"🔑 Identifiants administrateur : {ADMIN_LOGIN} / {ADMIN_PASSWORD}")
-    print(f"📁 Base de données : {DB_PATH}")
+    print(f"Serveur en ecoute sur {host}:{port}")
+    print(f"Identifiants administrateur : {ADMIN_LOGIN} / {ADMIN_PASSWORD}")
+    print(f"Base de donnees : {DB_PATH}")
     print("=" * 50)
 
     try:
         while True:
             try:
+                # Accepter une nouvelle connexion
                 conn, addr = serveur.accept()
-                # Démarrer un thread pour chaque client
+                # Démarrer un thread pour chaque client (threads démons qui se terminent avec le programme principal)
                 threading.Thread(target=gerer_client, args=(conn, addr), daemon=True).start()
             except OSError:
-                # socket fermé, sortir proprement
+                # La socket a été fermée, sortir proprement
                 break
     except KeyboardInterrupt:
-        print("\n🛑 Arrêt demandé par l'utilisateur")
+        print("\nArret demande par l'utilisateur")
     finally:
         try:
             serveur.close()
-            print("✅ Serveur fermé proprement")
+            print("Serveur ferme proprement")
         except Exception:
             pass
 
 if __name__ == "__main__":
+    # Point d'entrée principal
     main()
