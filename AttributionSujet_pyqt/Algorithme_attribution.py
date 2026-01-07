@@ -12,11 +12,39 @@ import sqlite3
 from collections import defaultdict
 import os
 
+# ============================
+# CONFIGURATION DES CHEMINS
+# ============================
+
+# Déterminer si on est dans AttributionSujet_pyqt
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+
+# Par cette version plus robuste :
+if os.path.basename(parent_dir) == "Attribution_sujets_pyqt":
+    BASE_DIR = parent_dir
+else:
+    # Remonter d'un niveau supplémentaire si nécessaire
+    grandparent_dir = os.path.dirname(parent_dir)
+    if os.path.basename(grandparent_dir) == "Attribution_sujets_pyqt":
+        BASE_DIR = grandparent_dir
+    else:
+        BASE_DIR = current_dir  # Fallback
+
+print(f"[DEBUG] Chemin déterminé: BASE_DIR={BASE_DIR}")
+
+# Définir les chemins
+DB_PATH = os.path.join(BASE_DIR, "data", "base.sqlite")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+# Création du dossier data s'il n'existe pas
+os.makedirs(DATA_DIR, exist_ok=True)
+
+print(f"[ALGORITHME] DB_PATH: {DB_PATH}")
+print(f"[ALGORITHME] Data dir: {DATA_DIR}")
+
 # Importez votre module existant
 import module_Attribution_sujets_pyqt as db_module
-
-# Chemin vers la base de données SQLite
-DB_PATH = os.path.join("data", "base.sqlite")
 
 
 class AlgorithmeAttribution:

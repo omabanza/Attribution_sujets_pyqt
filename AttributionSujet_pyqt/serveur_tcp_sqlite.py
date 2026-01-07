@@ -3,20 +3,40 @@ import threading  # Module pour gérer les connexions simultanées avec des thre
 import signal  # Module pour gérer les signaux système (ex: Ctrl+C)
 import sys  # Module système pour interagir avec l'interpréteur Python
 import sqlite3  # Module pour interagir avec la base de données SQLite
-from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants, changer_mot_de_passe, supprimer_compte
-from module_Attribution_sujets_pyqt import get_resultats_par_utilisateur, get_statistiques_avancees
+import os  # Module pour la gestion des chemins de fichiers
+
+# ============================
+# Configuration des chemins (AJOUTÉ)
+# ============================
+
+# Déterminer le chemin de base
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+
+# Si le répertoire parent s'appelle "Attribution_sujets_pyqt", mettre data là
+if os.path.basename(parent_dir) == "Attribution_sujets_pyqt":
+    BASE_DIR = parent_dir
+else:
+    BASE_DIR = current_dir  # Fallback
+
+# Définir le chemin de la base de données
+DB_PATH = os.path.join(BASE_DIR, "data", "base.sqlite")
 
 # ============================
 # Configuration administrateur
 # ============================
 ADMIN_LOGIN = "admin"  # Identifiant administrateur par défaut
 ADMIN_PASSWORD = "admin123"  # Mot de passe administrateur par défaut
-DB_PATH = "data/base.sqlite"  # Chemin vers le fichier de base de données
+
+# ============================
+# Import des fonctions du module
+# ============================
+from module_Attribution_sujets_pyqt import init_db, register_user, verifier_identifiants, changer_mot_de_passe, supprimer_compte
+from module_Attribution_sujets_pyqt import get_resultats_par_utilisateur, get_statistiques_avancees
 
 # ============================
 # Gestion des clients
 # ============================
-
 def gerer_client(conn, addr):
     """
     Gère la connexion d'un client.
@@ -646,6 +666,15 @@ def main():
     Fonction principale du serveur.
     Initialise la base de données et démarre le serveur socket.
     """
+    print(f"Base de données : {DB_PATH}")
+    print(f"Dossier data : {os.path.dirname(DB_PATH)}")
+    
+    # Vérifier que le dossier data existe
+    data_dir = os.path.dirname(DB_PATH)
+    if not os.path.exists(data_dir):
+        print(f"Création du dossier data: {data_dir}")
+        os.makedirs(data_dir, exist_ok=True)
+    
     # Initialiser la base de données
     init_db()
     
@@ -678,7 +707,6 @@ def main():
     # Démarrage de l'écoute (file d'attente de 5 connexions)
     serveur.listen(5)
     print(f"Serveur en ecoute sur {host}:{port}")
-    print(f"Base de donnees : {DB_PATH}")
     print("=" * 50)
 
     try:

@@ -14,11 +14,33 @@ import sqlite3
 import os
 from datetime import datetime
 
-# Chemin vers la base de données SQLite
-DB_PATH = os.path.join("data", "base.sqlite")
+# ============================
+# CONFIGURATION DES CHEMINS
+# ============================
+
+# Déterminer si on est dans AttributionSujet_pyqt
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+
+# Si le répertoire parent s'appelle "Attribution_sujets_pyqt", mettre data là
+if os.path.basename(parent_dir) == "Attribution_sujets_pyqt":
+    BASE_DIR = parent_dir
+else:
+    BASE_DIR = current_dir  # Fallback
+
+# Définir les chemins
+DB_PATH = os.path.join(BASE_DIR, "data", "base.sqlite")
+DATA_DIR = os.path.join(BASE_DIR, "data")
 
 # Création du dossier data s'il n'existe pas
-os.makedirs("data", exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
+
+print(f"DB_PATH: {DB_PATH}")
+print(f"Data dir: {DATA_DIR}")
+
+# ============================
+# FONCTIONS DE BASE DE DONNÉES
+# ============================
 
 def init_db():
     """
