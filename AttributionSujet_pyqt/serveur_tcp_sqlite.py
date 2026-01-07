@@ -678,7 +678,6 @@ def main():
     # Démarrage de l'écoute (file d'attente de 5 connexions)
     serveur.listen(5)
     print(f"Serveur en ecoute sur {host}:{port}")
-    print(f"Identifiants administrateur : {ADMIN_LOGIN} / {ADMIN_PASSWORD}")
     print(f"Base de donnees : {DB_PATH}")
     print("=" * 50)
 
