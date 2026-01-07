@@ -1,35 +1,5 @@
- def get_sujets_from_server(self):
-        """Récupère les sujets actifs depuis le serveur TCP"""
-        try:
-            print("DEBUG: Récupération des sujets depuis le serveur...")
-            client = socket.socket()
-            client.settimeout(5)  # Timeout de 5 secondes
-            client.connect((SERVER_IP, SERVER_PORT))
-            
-            client.send("GET_ACTIVE_SUBJECTS".encode())
-            reponse = client.recv(4096).decode()
-            client.close()
-            
-            print(f"DEBUG: Réponse serveur: {reponse[:100]}...")
-            
-            if reponse.startswith("ACTIVE_SUBJECTS:"):
-                sujets_str = reponse[16:]  # Enlever "ACTIVE_SUBJECTS:"
-                sujets = ast.literal_eval(sujets_str)
-                return sujets
-            else:
-                print(f"DEBUG: Réponse inattendue: {reponse}")
-                # Fallback : utiliser la base locale
-                return get_subjects()
-                
-        except socket.timeout:
-            print("DEBUG: ❌ Timeout - Serveur ne répond pas")
-            self.status_label.setText("❌ Serveur ne répond pas - Utilisation de la liste locale")
-            return get_subjects()
-        except ConnectionRefusedError:
-            print("DEBUG: ❌ Connexion refusée")
-            self.status_label.setText("❌ Serveur non disponible - Utilisation de la liste locale")
-            return get_subjects()
-        except Exception as e:
-            print(f"DEBUG: ❌ Exception: {e}")
-            self.status_label.setText(f"❌ Erreur: {str(e)[:50]}...")
-            return get_subjects()
+#Contribution projet
+MABAANZA Orlane
+CHAOUI Walid 
+THIAM Aida
+SECK Yande
